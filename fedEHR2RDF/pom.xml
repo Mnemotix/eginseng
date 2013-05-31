@@ -1,0 +1,64 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.mnemotix</groupId>
+  <artifactId>ginseng-fedEHR</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  
+  <properties>
+		<junit.version>4.10</junit.version>
+		<fedehr.version>1.0.7-SNAPSHOT</fedehr.version>
+		<jena.version>2.6.4</jena.version>
+  </properties>
+  
+ <dependencies>
+	<dependency>
+	  <groupId>fr.maatg.pandora.clients</groupId>
+	  <artifactId>pandora-clients-fedehr</artifactId>
+	  <version>${fedehr.version}</version>
+	</dependency>
+  
+	<dependency>
+		<groupId>junit</groupId>
+		<artifactId>junit</artifactId>
+		<version>${junit.version}</version>
+		<scope>test</scope>
+	</dependency>
+	
+	<dependency>
+		<groupId>com.hp.hpl.jena</groupId>
+		<artifactId>jena</artifactId>
+		<version>${jena.version}</version>
+	</dependency>
+	
+	
+		
+	<dependency>
+     <groupId>net.sourceforge.javacsv</groupId>
+     <artifactId>javacsv</artifactId>
+     <version>2.0</version>
+    </dependency>
+    
+  
+  </dependencies>
+  
+  
+  
+ <repositories>
+  <repository>
+   <id>maatg-fr-releases</id>
+   <name>maatG France Releases</name>
+   <url>http://nexus.maatg.fr/content/repositories/maatg-fr-releases</url>
+  </repository>
+  <repository>
+   <id>maatg-fr-snapshots</id>
+   <name>maatG France Snapshots</name>
+   <url>http://nexus.maatg.fr/content/repositories/maatg-fr-snapshots</url>
+   <snapshots>
+    <enabled>true</enabled>
+    <updatePolicy>always</updatePolicy>
+    <checksumPolicy>fail</checksumPolicy>
+   </snapshots>
+  </repository>
+ </repositories>
+  
+</project>

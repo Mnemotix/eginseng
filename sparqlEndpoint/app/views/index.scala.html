@@ -1,0 +1,17 @@
+@(query: Query)
+
+@import helper._
+
+@main("SPARQL") {
+    <a href="http://www.mnemotix.com" ><img width="150" src="@routes.Assets.at("/images/mnemotix-logo-transparent.png")"/></a>
+    @form(routes.Application.sparqlQuery()){    
+        <textarea name="query" cols="80" rows="15">@query.query</textarea>
+        <br/>
+        <select name="format">
+        	<option>json</option>
+        	<option>xml</option>
+        	<option>csv</option>
+        </select>
+        <input type="submit" value="Run query"/>
+   }    
+}
