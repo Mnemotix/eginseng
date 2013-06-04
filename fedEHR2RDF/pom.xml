@@ -5,12 +5,21 @@
   <version>0.0.1-SNAPSHOT</version>
   
   <properties>
+		<kgram.version>1.0.7</kgram.version>
 		<junit.version>4.10</junit.version>
 		<fedehr.version>1.0.7-SNAPSHOT</fedehr.version>
 		<jena.version>2.6.4</jena.version>
   </properties>
   
  <dependencies>
+ 
+ 
+		<dependency>
+			<groupId>fr.inria.edelweiss</groupId>	
+			<artifactId>kgtool</artifactId>
+			<version>${kgram.version}</version>
+		</dependency>
+ 
 	<dependency>
 	  <groupId>fr.maatg.pandora.clients</groupId>
 	  <artifactId>pandora-clients-fedehr</artifactId>

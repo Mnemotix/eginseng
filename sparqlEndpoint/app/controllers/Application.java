@@ -21,7 +21,7 @@ public class Application extends Controller {
     }
     
     public static Result sparqlQuery(){
-    	Form<Query> filledForm = queryForm.bindFromRequest(); //Ne marche pas en post selon nico
+    	Form<Query> filledForm = queryForm.bindFromRequest(); 
     	if(!filledForm.hasErrors()){
     		Query query = filledForm.get();
     		QueryManager queryManager = new CoreseManager("resources/sample_dbpedia_person.rdf");

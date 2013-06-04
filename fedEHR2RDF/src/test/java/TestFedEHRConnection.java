@@ -1,9 +1,13 @@
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.Writer;
 import java.util.Properties;
 
 import org.globus.gsi.CredentialException;
 import org.junit.Test;
+
+import com.mnemotix.ginseng.fedEHR.rdf.RDFExporter;
 
 import fr.maatg.pandora.clients.commons.exception.ClientError;
 import fr.maatg.pandora.clients.fedehr.utils.FedEHRConnection;
@@ -36,6 +40,9 @@ import fr.maatg.pandora.ns.idal.ServerError;
 
 public class TestFedEHRConnection {
 	
+	Writer ouput;
+	RDFExporter rdfExporter;
+	
 	@Test
 	public void test(){
 		//String fedEHRServiceURL = "https://ginseng.unice.fr:8443/pandora-gateway-idal-fedehr/fedehr";
@@ -48,17 +55,20 @@ public class TestFedEHRConnection {
 		try {
 
 			Properties properties = new Properties();
-			FileReader fileReader = new FileReader("src/test/resources/fedEHR.properties");
+			FileReader fileReader = new FileReader("src/test/resources/fedEHRdev.properties");
 			properties.load(fileReader);
 			String pwd = properties.getProperty("pwd");
 			String caPathPattern = "file:"+properties.getProperty("capath.pattern.path");
-			
 			FedEHRConnection fedConnection = new FedEHRConnection(fedEHRServiceURL, certFile, keyFile, caPathPattern, pwd, receiveTimeout);
 			//System.out.println(fedConnection.fedEHRPortType.getHospitalNodeList("").getHospitalNode());
 			
+
+			this.ouput = new FileWriter("src/test/resources/patient.rdf");
+			this.rdfExporter = new RDFExporter();
 			
 			getPatients(fedConnection);
-			
+
+			this.ouput.close();
 		} catch (CredentialException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -79,7 +89,7 @@ public class TestFedEHRConnection {
 		//QAdress ==> QCity ==> QCountry
 	}
 	
-	private void getPatients(FedEHRConnection fedConnection) throws ServerError {
+	private void getPatients(FedEHRConnection fedConnection) throws ServerError, IOException {
 		QLimitedPatient qLimitedPatient = new QLimitedPatient(); //1000 par serveur par défaut.
 		QPatient qPatient = new QPatient();
 		qPatient.setHospitalNode(fedConnection.fedEHRPortType.getLocalHospitalNodeName(""));
@@ -104,15 +114,15 @@ public class TestFedEHRConnection {
 			Patient p = patients.getPatient().get(0);
 			//QPatient qPatient = new QPatient(); qPatient.setID(String.valueOf(p.getID())); //poss
 			System.out.println(p.getFirstName() + " " + p.getLastName());
+			this.rdfExporter.patient2RDF(p, this.ouput);
 			getMedicalBag(fedConnection, p);
-			
 			qLimitObject = patients.getNextLimits();
 			qLimitedPatient.setLimits(qLimitObject);		
 			
 		} while(false && !qLimitObject.isFinished());
 	}
 
-	private void getMedicalBag(FedEHRConnection fedConnection, Patient p) throws ServerError {
+	private void getMedicalBag(FedEHRConnection fedConnection, Patient p) throws ServerError, IOException {
 		QLimitedMedicalBag qLimitedMedicalBag = new QLimitedMedicalBag(); //1000 par serveur par défaut.
 
 		QMedicalEvent qMedicalEvent = new QMedicalEvent();
@@ -147,6 +157,7 @@ public class TestFedEHRConnection {
 						medicalBag.getMedicalBagNo() + ": "+
 						medicalBag.getHospitalNode() + ": " +
 						medicalBag.getDescription());
+				this.rdfExporter.medicalBag2RDF(medicalBag, this.ouput);
 				for(MedicalEvent medicalEvent : medicalBag.getMedicalEvents()){
 					System.out.println("medical Event: " +
 							medicalEvent.getID() + ": "+

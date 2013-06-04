@@ -10,7 +10,9 @@ public class Query {
 
 	@Required
 	public String query;
+
 	public String format;
+	
 	private QueryManager queryManager;
 
 	public Query(){
@@ -38,4 +40,15 @@ public class Query {
 	public void setQueryManager(QueryManager queryManager) {
 		this.queryManager = queryManager;
 	}
+	
+
+	public String getQuery() {
+		return query;
+	}
+
+	public void setQuery(String query) {
+		this.query = query;
+	}
+	
+	
 }
