@@ -13,8 +13,12 @@ import com.mnemotix.ginseng.vocabulary.SemEHR;
 
 import fr.inria.acacia.corese.cg.datatype.DatatypeMap;
 import fr.maatg.pandora.ns.idal.Address;
+import fr.maatg.pandora.ns.idal.Annotation;
+import fr.maatg.pandora.ns.idal.BooleanValue;
 import fr.maatg.pandora.ns.idal.ClinicalVariable;
 import fr.maatg.pandora.ns.idal.ClinicalVariableRelatedClinicalVariables;
+import fr.maatg.pandora.ns.idal.DateValue;
+import fr.maatg.pandora.ns.idal.IntegerValue;
 import fr.maatg.pandora.ns.idal.MedicalBag;
 import fr.maatg.pandora.ns.idal.MedicalEvent;
 import fr.maatg.pandora.ns.idal.Patient;
@@ -64,8 +68,10 @@ public class RDFExporter {
 	public String medicalBag2RDF(MedicalBag medicalBag, Writer output) throws IOException{
 		String medicalBagURL =  baseURL + "medicalBag-" + medicalBag.getHospitalNode() + "-" + medicalBag.getID();
 
+		output.write(getTripleURIValue(medicalBagURL, RDF.type.getURI(), SemEHR.MEDICAL_BAG.getURI()));
 		if (medicalBag.getMedicalBagDate() !=null){
-			output.write(getTripleURIValue(
+			output.write(
+				getTripleLiteralValue(
 					medicalBagURL, 
 					DC.date.getURI(), 
 					buildLiteralValue(medicalBag.getMedicalBagDate().toXMLFormat(), DatatypeMap.xsddateTime)));
@@ -84,8 +90,10 @@ public class RDFExporter {
 	
 	public String medicalEvent2RDF(MedicalEvent medicalEvent, Writer output) throws IOException{
 		String medicalEventURL =  baseURL + "medicalEvent-" + medicalEvent.getHospitalNode() + "-" + medicalEvent.getID();
+		output.write(getTripleURIValue(medicalEventURL, RDF.type.getURI(), SemEHR.MEDICAL_EVENT.getURI()));
 		if (medicalEvent.getEventDate() !=null){
-			output.write(getTripleURIValue(
+			output.write(
+				getTripleLiteralValue(
 					medicalEventURL, 
 					DC.date.getURI(), 
 					buildLiteralValue(medicalEvent.getEventDate().toXMLFormat(), DatatypeMap.xsddateTime)));
@@ -99,9 +107,65 @@ public class RDFExporter {
 		return medicalEventURL;
 	}
 	
-	public String clinicalVariable2RDF(ClinicalVariable clinicalVariable, Writer output){
+	public String clinicalVariable2RDF(ClinicalVariable clinicalVariable, Writer output) throws IOException{
 		String clinicalVariableURL =  baseURL + "clinicalVariable-" + clinicalVariable.getHospitalNode() + "-" + clinicalVariable.getID();
-		//TODO get related linical variable and write rdf into output
+		output.write(getTripleURIValue(clinicalVariableURL, RDF.type.getURI(), SemEHR.CLINICAL_VARIABLE.getURI()));
+		if(clinicalVariable.getAcquisitionDate() != null){
+			output.write(
+				getTripleLiteralValue(
+					clinicalVariableURL, 
+					SemEHR.ACQUISITION_DATE.getURI(), 
+					buildLiteralValue(clinicalVariable.getAcquisitionDate().toXMLFormat(), DatatypeMap.xsddate)));
+		}
+		try{
+			Annotation annotation = (Annotation) clinicalVariable;
+			if(annotation.getValue() != null){
+				output.write(
+						getTripleLiteralValue(
+							clinicalVariableURL, 
+							SemEHR.ANNOTATION.getURI(), 
+							annotation.getValue()));
+			}
+		}catch(ClassCastException classCastException){
+			//OK This is not an annotation
+		}
+		try{
+			IntegerValue integerValue = (IntegerValue) clinicalVariable;
+			if(integerValue.getValue() != null){
+				output.write(
+						getTripleLiteralValue(
+							clinicalVariableURL, 
+							SemEHR.VALUE.getURI(), 
+							buildLiteralValue(String.valueOf(integerValue.getValue().longValue()), DatatypeMap.xsdlong)));
+			}
+		}catch(ClassCastException classCastException){
+			//OK This is not an integer value
+		}
+		try{
+			BooleanValue booleanValue = (BooleanValue) clinicalVariable;
+			if(booleanValue.isValue() != null){
+				output.write(
+					getTripleLiteralValue(
+						clinicalVariableURL, 
+						SemEHR.VALUE.getURI(), 
+						buildLiteralValue(String.valueOf(booleanValue.isValue()), DatatypeMap.xsdboolean)));
+			}
+		}catch(ClassCastException classCastException){
+			//OK This is not an boolean value
+		}
+		try{
+			DateValue dateValue = (DateValue) clinicalVariable;
+			if(dateValue.getValue() != null){
+				output.write(
+					getTripleLiteralValue(
+						clinicalVariableURL, 
+						SemEHR.VALUE.getURI(), 
+						buildLiteralValue(dateValue.getValue().toXMLFormat(), DatatypeMap.xsddateTime)));
+			}
+		}catch(ClassCastException classCastException){
+			//OK This is not an boolean value
+		}
+		//TODO get related clinical variable and write rdf into output
 		List<ClinicalVariableRelatedClinicalVariables> clinicalVariableRelatedClinicalVariables = clinicalVariable.getRelatedClinicalVariables();
 		return clinicalVariableURL;
 	}

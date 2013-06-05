@@ -14,6 +14,7 @@ import fr.maatg.pandora.clients.fedehr.utils.FedEHRConnection;
 import fr.maatg.pandora.ns.idal.Annotation;
 import fr.maatg.pandora.ns.idal.BooleanValue;
 import fr.maatg.pandora.ns.idal.ClinicalVariable;
+import fr.maatg.pandora.ns.idal.ClinicalVariables;
 import fr.maatg.pandora.ns.idal.DateValue;
 import fr.maatg.pandora.ns.idal.IntegerValue;
 import fr.maatg.pandora.ns.idal.MedicalBag;
@@ -25,10 +26,12 @@ import fr.maatg.pandora.ns.idal.Patients;
 import fr.maatg.pandora.ns.idal.QAnnotation;
 import fr.maatg.pandora.ns.idal.QBooleanValue;
 import fr.maatg.pandora.ns.idal.QClinicalVariable;
+import fr.maatg.pandora.ns.idal.QClinicalVariableQRelatedClinicalVariable;
 import fr.maatg.pandora.ns.idal.QDateValue;
 import fr.maatg.pandora.ns.idal.QIntegerValue;
 import fr.maatg.pandora.ns.idal.QLimitObject;
 import fr.maatg.pandora.ns.idal.QLimitObjectByNode;
+import fr.maatg.pandora.ns.idal.QLimitedClinicalVariable;
 import fr.maatg.pandora.ns.idal.QLimitedMedicalBag;
 import fr.maatg.pandora.ns.idal.QLimitedMedicalEvent;
 import fr.maatg.pandora.ns.idal.QLimitedPatient;
@@ -129,8 +132,8 @@ public class TestFedEHRConnection {
 		QMedicalEventType qMedicalEventType = new QMedicalEventType();
 		qMedicalEvent.setQMedicalEventType(qMedicalEventType);
 
-		QClinicalVariable qClinicalVariable = new QClinicalVariable();
-		qClinicalVariable.setValueNotAvailable(true);
+ 		QClinicalVariable qClinicalVariable = new QClinicalVariable();
+		//qClinicalVariable.setValueNotAvailable(false);
 		qMedicalEvent.setQClinicalVariable(qClinicalVariable);
 		
 		QMedicalBag qMedicalBag = new QMedicalBag();
@@ -157,24 +160,27 @@ public class TestFedEHRConnection {
 						medicalBag.getMedicalBagNo() + ": "+
 						medicalBag.getHospitalNode() + ": " +
 						medicalBag.getDescription());
-				this.rdfExporter.medicalBag2RDF(medicalBag, this.ouput);
 				for(MedicalEvent medicalEvent : medicalBag.getMedicalEvents()){
 					System.out.println("medical Event: " +
 							medicalEvent.getID() + ": "+
 							medicalEvent.getMedicalEventType().getName()+ ": " +
 							medicalEvent.getEventDate());
-					/*for(ClinicalVariable clinicalVariable : medicalEvent.getClinicalVariable()){
+					for(ClinicalVariable clinicalVariable : medicalEvent.getClinicalVariable()){
+						
 						System.out.println("clinical Variable: " +
 								clinicalVariable.getID() + ": " +
 								clinicalVariable.getClinicalVariableTypeID() + ": "+ //id unique par noeud 
 								clinicalVariable.getTypeName() + ": " +
 								clinicalVariable.getAcquisitionDate() + ": " +
+								
 								clinicalVariable.getRelatedClinicalVariables()
 								);
-					}*/
+						//getRelatedClinicalVariables(fedConnection, clinicalVariable);
+					}
 
-					getClinicalVariables(fedConnection, medicalEvent);
+					//getClinicalVariables(fedConnection, medicalEvent);
 				}
+				this.rdfExporter.medicalBag2RDF(medicalBag, this.ouput);
 			}
 			//QPatient qPatient = new QPatient(); qPatient.setID(String.valueOf(p.getID())); //poss
 		
@@ -184,19 +190,42 @@ public class TestFedEHRConnection {
 		} while(!qLimitObject.isFinished());
 	}
 	
+	public void getRelatedClinicalVariables(FedEHRConnection fedEHRConnection, ClinicalVariable clinicalVariable) throws ServerError{
+		//TODO
+		QLimitedClinicalVariable qLimitedClinicalVariable = new QLimitedClinicalVariable();
+		QClinicalVariable qClinicalVariable = new QClinicalVariable();
+		qClinicalVariable.setID(String.valueOf(clinicalVariable.getID()));
+		qLimitedClinicalVariable.setQClinicalVariable(qClinicalVariable);
+		QClinicalVariableQRelatedClinicalVariable qClinicalVariableQRelatedClinicalVariable = new QClinicalVariableQRelatedClinicalVariable();
+		qClinicalVariable.setQRelatedClinicalVariable(qClinicalVariableQRelatedClinicalVariable);
+		
+		QLimitObject qLimitObject = new QLimitObject();
+		QLimitObjectByNode qLimitObjectByNode = new QLimitObjectByNode();
+		qLimitObjectByNode.setNode(clinicalVariable.getHospitalNode());  //pour tous les noeuds
+		qLimitObjectByNode.setLimit(10); //10 par noeud donc 30 puisqu'on a 3 noeuds.
+		qLimitObject.getLimitObjectByNode().add(qLimitObjectByNode); //on peut spécifier plusieurs une limit par noeud
+		qLimitedClinicalVariable.setLimits(qLimitObject);
+		
+		ClinicalVariables clinicalVariables = fedEHRConnection.fedEHRPortType.listClinicalVariables(qLimitedClinicalVariable);
+		if(clinicalVariables.getClinicalVariable().size() > 0){
+			ClinicalVariable resultClinicalVariable = clinicalVariables.getClinicalVariable().get(0); 
+			System.out.println("nbRelated :" + resultClinicalVariable.getRelatedClinicalVariables().size());
+		}
+
+		
+	}
 	
-	public void getClinicalVariables(FedEHRConnection fedConnection, MedicalEvent medicalEvent) throws ServerError{
+	public void getClinicalVariables(FedEHRConnection fedConnection, MedicalEvent medicalEvent) throws ServerError, IOException{
 		QLimitedMedicalEvent qLimitedMedicalEvent = new QLimitedMedicalEvent();
 		
 		QMedicalEvent qMedicalEvent = new QMedicalEvent();
 		qMedicalEvent.setID(String.valueOf(medicalEvent.getID()));
-		//qMedicalEvent.setHospitalNode(medicalEvent.getHospitalNode());
-		QClinicalVariable qClinicalVariable = new QClinicalVariable();
-		qClinicalVariable.setValueNotAvailable(true);
-		qMedicalEvent.setQClinicalVariable(qClinicalVariable);
+		
 		qLimitedMedicalEvent.setQMedicalEvent(qMedicalEvent);
 		
+		
 
+		
 		QLimitObject qLimitObject = new QLimitObject();
 		//qLimitObject.setCountRequested(true);
 		QLimitObjectByNode qLimitObjectByNode = new QLimitObjectByNode();
@@ -209,11 +238,17 @@ public class TestFedEHRConnection {
 		
 
 		
-		MedicalEvents medicalEvents = fedConnection.fedEHRPortType.listMedicalEvents(qLimitedMedicalEvent);
+		//get
+		QClinicalVariable qClinicalVariable = new QClinicalVariable();
+		qClinicalVariable.setValueNotAvailable(true);
+		qMedicalEvent.setQClinicalVariable(qClinicalVariable);
+		 MedicalEvents medicalEvents = fedConnection.fedEHRPortType.listMedicalEvents(qLimitedMedicalEvent);
 		if(medicalEvents.getMedicalEvent().size() > 0){
-			for(ClinicalVariable clinicalVariable : medicalEvent.getClinicalVariable()){
+			for(ClinicalVariable clinicalVariable : medicalEvents.getMedicalEvent().get(0).getClinicalVariable()){
 				System.out.println("clinical Variable: " +
 						clinicalVariable.getID() + ": " +
+						
+						//While crawling, index type of clinical Variable and insert it into model
 						clinicalVariable.getClinicalVariableTypeID() + ": "+ //id unique par noeud 
 						clinicalVariable.getTypeName() + ": " +
 						clinicalVariable.getAcquisitionDate() + ": " +
@@ -223,12 +258,13 @@ public class TestFedEHRConnection {
 		}
 
 		QAnnotation qAnnotation = new QAnnotation(); //QAnnotation extend QClinicalVariable
-		//qAnnotation.setValueNotAvailable(true);
+		qAnnotation.setValueNotAvailable(false);
 		qMedicalEvent.setQClinicalVariable(qAnnotation);
 		
 		medicalEvents = fedConnection.fedEHRPortType.listMedicalEvents(qLimitedMedicalEvent);
 		if(medicalEvents.getMedicalEvent().size() > 0){
-			for(ClinicalVariable clinicalVariable : medicalEvent.getClinicalVariable()){
+			//this.rdfExporter.medicalEvent2RDF(medicalEvent, this.ouput);
+			for(ClinicalVariable clinicalVariable : medicalEvents.getMedicalEvent().get(0).getClinicalVariable()){
 				Annotation annotation = (Annotation) clinicalVariable;
 				System.out.println("Annotation: " +
 						annotation.getID() + ": " +
@@ -249,8 +285,9 @@ public class TestFedEHRConnection {
 		qMedicalEvent.setQClinicalVariable(qDateValue);
 		medicalEvents = fedConnection.fedEHRPortType.listMedicalEvents(qLimitedMedicalEvent);
 		if(medicalEvents.getMedicalEvent().size() > 0){
+			this.rdfExporter.medicalEvent2RDF(medicalEvent, this.ouput);
 			MedicalEvent medicalEvent3 = medicalEvents.getMedicalEvent().get(0);
-			
+			//this.rdfExporter.medicalEvent2RDF(medicalEvent3, this.ouput);
 			for(ClinicalVariable clinicalVariable : medicalEvent3.getClinicalVariable()){
 				DateValue dateValue = (DateValue) clinicalVariable;
 				System.out.println("DateValue: " +
@@ -270,7 +307,7 @@ public class TestFedEHRConnection {
 		medicalEvents = fedConnection.fedEHRPortType.listMedicalEvents(qLimitedMedicalEvent);
 		if(medicalEvents.getMedicalEvent().size() > 0){
 			MedicalEvent medicalEvent3 = medicalEvents.getMedicalEvent().get(0);
-			
+			//this.rdfExporter.medicalEvent2RDF(medicalEvent3, this.ouput);
 			for(ClinicalVariable clinicalVariable : medicalEvent3.getClinicalVariable()){
 				IntegerValue integerValue = (IntegerValue) clinicalVariable;
 				System.out.println("IntegerValue: " +
@@ -292,7 +329,7 @@ public class TestFedEHRConnection {
 		medicalEvents = fedConnection.fedEHRPortType.listMedicalEvents(qLimitedMedicalEvent);
 		if(medicalEvents.getMedicalEvent().size() > 0){
 			MedicalEvent medicalEvent3 = medicalEvents.getMedicalEvent().get(0);
-			
+			//this.rdfExporter.medicalEvent2RDF(medicalEvent3, this.ouput);
 			for(ClinicalVariable clinicalVariable : medicalEvent3.getClinicalVariable()){
 				BooleanValue booleanValue = (BooleanValue) clinicalVariable;
 				System.out.println("BooleanValue: " +
