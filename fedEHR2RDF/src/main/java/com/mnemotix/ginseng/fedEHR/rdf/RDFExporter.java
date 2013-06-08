@@ -2,11 +2,9 @@ package com.mnemotix.ginseng.fedEHR.rdf;
 
 import java.io.IOException;
 import java.io.Writer;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 
-import javax.xml.datatype.DatatypeFactory;
 
 import com.hp.hpl.jena.vocabulary.DC;
 import com.hp.hpl.jena.vocabulary.OWL;
@@ -45,6 +43,14 @@ public class RDFExporter {
 		return "<"+subject+"> " + "<"+property+"> \""+value+"\" . \n" ;
 	}
 	
+	public void writeTripleURIValue(Writer output, String subject, String property, String value) throws IOException{
+		output.write(getTripleURIValue(subject, property, value));
+	}
+
+	public void writeTripleLiteralValue(Writer output, String subject, String property, String value) throws IOException{
+		output.write(getTripleLiteralValue(subject, property, value));
+	}
+	
 	public String buildLiteralValue(String label, String datatype){
 		return label + "^^" +datatype;
 	}
@@ -57,10 +63,10 @@ public class RDFExporter {
 		}
 		output.write(getTripleLiteralValue(patientURL, Foaf.FIRST_NAME.getURI(), patient.getFirstName()));
 		output.write(getTripleLiteralValue(patientURL, Foaf.LAST_NAME.getURI(), patient.getLastName()));
-		Address patientAddress = patient.getAddress();
+		/*Address patientAddress = patient.getAddress();
 		if(patientAddress != null){
 			output.write(getTripleURIValue(patientURL, SemEHR.ADDRESS.getURI(), address2RDF(patientAddress, output)));
-		}
+		}*/
 		List<MedicalBag> medicalBags = patient.getMedicalBag();
 		if(medicalBags != null){
 			for(MedicalBag medicalBag : medicalBags){
@@ -70,9 +76,15 @@ public class RDFExporter {
 		return patientURL;
 	}
 	
-	public String address2RDF(Address address, Writer output){
+	public String address2RDF(Address address, Writer output) throws IOException{
 		String addressURL =  baseURL + "address-" + address.getHospitalNode() + "-" + address.getID();
-		//TODO write triples to ouput
+		writeTripleURIValue(output, addressURL, RDF.type.getURI(), SemEHR.ADDRESS_INSTANCE.getURI());
+		if(address.getCity() != null){
+			String cityURL =  baseURL + "city-" + address.getHospitalNode() + "-" + address.getCity().getID();
+			writeTripleURIValue(output, addressURL, SemEHR.CITY.getURI(), cityURL);
+			writeTripleLiteralValue(output, cityURL, RDFS.label.getURI(), address.getCity().getName());;
+			writeTripleURIValue(output, cityURL, RDF.type.getURI(), SemEHR.CITY_INSTANCE.getURI());
+		}
 		return addressURL;
 	}
 	

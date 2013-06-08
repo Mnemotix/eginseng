@@ -2,6 +2,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
+import java.util.List;
 import java.util.Properties;
 
 import org.globus.gsi.CredentialException;
@@ -52,7 +53,6 @@ public class TestFedEHRConnection {
 	
 	Writer ouput;
 	RDFExporter rdfExporter = new RDFExporter();
-	ApiManager apiManager = new ApiManager();
 	
 	@Test
 	public void test(){
@@ -73,7 +73,6 @@ public class TestFedEHRConnection {
 			FedEHRConnection fedConnection = new FedEHRConnection(fedEHRServiceURL, certFile, keyFile, caPathPattern, pwd, receiveTimeout);
 			//System.out.println(fedConnection.fedEHRPortType.getHospitalNodeList("").getHospitalNode());
 			
-
 			this.ouput = new FileWriter("src/test/resources/patient.rdf");
 			
 			getPatients(fedConnection);
@@ -121,7 +120,7 @@ public class TestFedEHRConnection {
 			//QPatient qPatient = new QPatient(); qPatient.setID(String.valueOf(p.getID())); //poss
 			System.out.println(p.getFirstName() + " " + p.getLastName());
 			String patientUrl = this.rdfExporter.patient2RDF(p, this.ouput);
-			Address patientAddress = this.apiManager.getAddress(fedConnection, p);
+			Address patientAddress = ApiManager.getAddress(fedConnection, p);
 			if(patientAddress != null){
 				this.ouput.write(
 						this.rdfExporter.getTripleURIValue(
@@ -129,14 +128,14 @@ public class TestFedEHRConnection {
 								SemEHR.ADDRESS.getURI(), 
 								this.rdfExporter.address2RDF(patientAddress, this.ouput)));
 			}
-			getMedicalBag(fedConnection, p);
+			getMedicalBags(fedConnection, p);
 			qLimitObject = patients.getNextLimits();
 			qLimitedPatient.setLimits(qLimitObject);		
 			
 		} while(false && !qLimitObject.isFinished());
 	}
 
-	private void getMedicalBag(FedEHRConnection fedConnection, Patient p) throws ServerError, IOException {
+	private void getMedicalBags(FedEHRConnection fedConnection, Patient p) throws ServerError, IOException {
 		QLimitedMedicalBag qLimitedMedicalBag = new QLimitedMedicalBag(); //1000 par serveur par défaut.
 
 		QMedicalEvent qMedicalEvent = new QMedicalEvent();
