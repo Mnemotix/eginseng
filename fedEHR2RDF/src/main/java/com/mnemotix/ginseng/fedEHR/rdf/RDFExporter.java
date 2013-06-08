@@ -2,12 +2,16 @@ package com.mnemotix.ginseng.fedEHR.rdf;
 
 import java.io.IOException;
 import java.io.Writer;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 
 import javax.xml.datatype.DatatypeFactory;
 
 import com.hp.hpl.jena.vocabulary.DC;
+import com.hp.hpl.jena.vocabulary.OWL;
 import com.hp.hpl.jena.vocabulary.RDF;
+import com.hp.hpl.jena.vocabulary.RDFS;
 import com.mnemotix.ginseng.vocabulary.Foaf;
 import com.mnemotix.ginseng.vocabulary.SemEHR;
 
@@ -21,12 +25,17 @@ import fr.maatg.pandora.ns.idal.DateValue;
 import fr.maatg.pandora.ns.idal.IntegerValue;
 import fr.maatg.pandora.ns.idal.MedicalBag;
 import fr.maatg.pandora.ns.idal.MedicalEvent;
+import fr.maatg.pandora.ns.idal.MedicalEventType;
 import fr.maatg.pandora.ns.idal.Patient;
 
 public class RDFExporter {
 	
 	String baseURL = "http://e-ginseng.org/";
+	//TODO relatedclinicalVariable
+	//TODO address
+	//TODO type
 	
+	public HashSet<String> typePrimitives = new HashSet<String>();
 	
 	public String getTripleURIValue(String subject, String property, String value){
 		return "<"+subject+"> " + "<"+property+"> " + "<"+value+"> . \n" ;
@@ -43,7 +52,9 @@ public class RDFExporter {
 	public String patient2RDF(Patient patient, Writer output) throws IOException{
 		String patientURL = baseURL + "patient-" + patient.getHospitalNode() + "-" + patient.getID();
 		output.write(getTripleURIValue(patientURL, RDF.type.getURI(), SemEHR.PATIENT.getURI()));
-		output.write(getTripleURIValue(patientURL, SemEHR.BIRTH_DATE.getURI(), buildLiteralValue(patient.getDateOfBirth().toXMLFormat(), DatatypeMap.xsddate)));
+		if(patient.getDateOfBirth() != null){
+			output.write(getTripleURIValue(patientURL, SemEHR.BIRTH_DATE.getURI(), buildLiteralValue(patient.getDateOfBirth().toXMLFormat(), DatatypeMap.xsddate)));
+		}
 		output.write(getTripleLiteralValue(patientURL, Foaf.FIRST_NAME.getURI(), patient.getFirstName()));
 		output.write(getTripleLiteralValue(patientURL, Foaf.LAST_NAME.getURI(), patient.getLastName()));
 		Address patientAddress = patient.getAddress();
@@ -67,7 +78,6 @@ public class RDFExporter {
 	
 	public String medicalBag2RDF(MedicalBag medicalBag, Writer output) throws IOException{
 		String medicalBagURL =  baseURL + "medicalBag-" + medicalBag.getHospitalNode() + "-" + medicalBag.getID();
-
 		output.write(getTripleURIValue(medicalBagURL, RDF.type.getURI(), SemEHR.MEDICAL_BAG.getURI()));
 		if (medicalBag.getMedicalBagDate() !=null){
 			output.write(
@@ -76,7 +86,6 @@ public class RDFExporter {
 					DC.date.getURI(), 
 					buildLiteralValue(medicalBag.getMedicalBagDate().toXMLFormat(), DatatypeMap.xsddateTime)));
 		}
-		//medicalBag.getMedicalBagDate()
 		List<MedicalEvent> medicalEvents = medicalBag.getMedicalEvents();
 		if(medicalEvents != null){
 			for(MedicalEvent medicalEvent : medicalEvents){
@@ -91,12 +100,22 @@ public class RDFExporter {
 	public String medicalEvent2RDF(MedicalEvent medicalEvent, Writer output) throws IOException{
 		String medicalEventURL =  baseURL + "medicalEvent-" + medicalEvent.getHospitalNode() + "-" + medicalEvent.getID();
 		output.write(getTripleURIValue(medicalEventURL, RDF.type.getURI(), SemEHR.MEDICAL_EVENT.getURI()));
+		MedicalEventType medicalEventType = medicalEvent.getMedicalEventType();
+		String medicalEventTypeURL = SemEHR.NS + "medicalEventType-"+medicalEventType.getID() +"-"+ medicalEventType.getName().replaceAll	("\\s", "");
+		output.write(getTripleURIValue(medicalEventURL, RDF.type.getURI(), medicalEventTypeURL));
 		if (medicalEvent.getEventDate() !=null){
 			output.write(
 				getTripleLiteralValue(
 					medicalEventURL, 
 					DC.date.getURI(), 
 					buildLiteralValue(medicalEvent.getEventDate().toXMLFormat(), DatatypeMap.xsddateTime)));
+		}
+		if(!typePrimitives.contains(medicalEventTypeURL)){
+			//Write Clinical Variable type Description
+			output.write(getTripleURIValue(medicalEventTypeURL, RDF.type.getURI(), OWL.Class.getURI()));
+			output.write(getTripleLiteralValue(medicalEventTypeURL, RDFS.label.getURI(), medicalEventType.getName()));
+			output.write(getTripleURIValue(medicalEventTypeURL, RDFS.subClassOf.getURI(), SemEHR.MEDICAL_EVENT.getURI()));
+			typePrimitives.add(medicalEventTypeURL);
 		}
 		List<ClinicalVariable> clinicalVariables = medicalEvent.getClinicalVariable();
 		if(clinicalVariables != null){
@@ -110,6 +129,17 @@ public class RDFExporter {
 	public String clinicalVariable2RDF(ClinicalVariable clinicalVariable, Writer output) throws IOException{
 		String clinicalVariableURL =  baseURL + "clinicalVariable-" + clinicalVariable.getHospitalNode() + "-" + clinicalVariable.getID();
 		output.write(getTripleURIValue(clinicalVariableURL, RDF.type.getURI(), SemEHR.CLINICAL_VARIABLE.getURI()));
+		String clinicalVariableTypeURL = SemEHR.NS + "ClinicalVariableType-"+clinicalVariable.getMedicalEventTypeID() +"-"+ clinicalVariable.getTypeName().replaceAll	("\\s", "");
+		output.write(getTripleURIValue(clinicalVariableURL, RDF.type.getURI(), clinicalVariableTypeURL));
+		if(!typePrimitives.contains(clinicalVariableTypeURL)){
+			//Write Clinical Variable type Description
+			output.write(getTripleURIValue(clinicalVariableTypeURL, RDF.type.getURI(), OWL.Class.getURI()));
+			output.write(getTripleLiteralValue(clinicalVariableTypeURL, RDFS.label.getURI(), clinicalVariable.getTypeName()));
+			output.write(getTripleURIValue(clinicalVariableTypeURL, RDFS.subClassOf.getURI(), SemEHR.CLINICAL_VARIABLE.getURI()));
+			typePrimitives.add(clinicalVariableTypeURL);
+		}
+		
+		clinicalVariable.getClinicalVariableTypeID();
 		if(clinicalVariable.getAcquisitionDate() != null){
 			output.write(
 				getTripleLiteralValue(
@@ -166,14 +196,14 @@ public class RDFExporter {
 			//OK This is not an boolean value
 		}
 		//TODO get related clinical variable and write rdf into output
-		List<ClinicalVariableRelatedClinicalVariables> clinicalVariableRelatedClinicalVariables = clinicalVariable.getRelatedClinicalVariables();
+		List<ClinicalVariableRelatedClinicalVariables> relatedClinicalVariables = clinicalVariable.getRelatedClinicalVariables();
+		for(ClinicalVariableRelatedClinicalVariables clinicalVariableRelatedClinicalVariables : relatedClinicalVariables){
+		}
 		return clinicalVariableURL;
 	}
 	
-	public String ClinicalVariable2RDF(ClinicalVariable clinicalVariable, Writer output){
-		String clinicalVariableURL =  baseURL + "medicalBag-" + clinicalVariable.getHospitalNode() + "-" + clinicalVariable.getID();
-		//TODO write triples to ouput
-		return clinicalVariableURL;
-	}
 	
+	public String buildClinicalVariableURL(ClinicalVariable clinicalVariable){
+		return baseURL + "clinicalVariable-" + clinicalVariable.getHospitalNode() + "-" + clinicalVariable.getID();
+	}
 }

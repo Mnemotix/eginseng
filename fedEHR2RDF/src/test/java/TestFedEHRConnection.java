@@ -7,10 +7,14 @@ import java.util.Properties;
 import org.globus.gsi.CredentialException;
 import org.junit.Test;
 
+import com.mnemotix.ginseng.fedEHR.ApiManager;
+import com.mnemotix.ginseng.fedEHR.GinsengHospitalNodes;
 import com.mnemotix.ginseng.fedEHR.rdf.RDFExporter;
+import com.mnemotix.ginseng.vocabulary.SemEHR;
 
 import fr.maatg.pandora.clients.commons.exception.ClientError;
 import fr.maatg.pandora.clients.fedehr.utils.FedEHRConnection;
+import fr.maatg.pandora.ns.idal.Address;
 import fr.maatg.pandora.ns.idal.Annotation;
 import fr.maatg.pandora.ns.idal.BooleanValue;
 import fr.maatg.pandora.ns.idal.ClinicalVariable;
@@ -23,14 +27,17 @@ import fr.maatg.pandora.ns.idal.MedicalEvent;
 import fr.maatg.pandora.ns.idal.MedicalEvents;
 import fr.maatg.pandora.ns.idal.Patient;
 import fr.maatg.pandora.ns.idal.Patients;
+import fr.maatg.pandora.ns.idal.QAddress;
 import fr.maatg.pandora.ns.idal.QAnnotation;
 import fr.maatg.pandora.ns.idal.QBooleanValue;
+import fr.maatg.pandora.ns.idal.QCity;
 import fr.maatg.pandora.ns.idal.QClinicalVariable;
 import fr.maatg.pandora.ns.idal.QClinicalVariableQRelatedClinicalVariable;
 import fr.maatg.pandora.ns.idal.QDateValue;
 import fr.maatg.pandora.ns.idal.QIntegerValue;
 import fr.maatg.pandora.ns.idal.QLimitObject;
 import fr.maatg.pandora.ns.idal.QLimitObjectByNode;
+import fr.maatg.pandora.ns.idal.QLimitedAddress;
 import fr.maatg.pandora.ns.idal.QLimitedClinicalVariable;
 import fr.maatg.pandora.ns.idal.QLimitedMedicalBag;
 import fr.maatg.pandora.ns.idal.QLimitedMedicalEvent;
@@ -44,7 +51,8 @@ import fr.maatg.pandora.ns.idal.ServerError;
 public class TestFedEHRConnection {
 	
 	Writer ouput;
-	RDFExporter rdfExporter;
+	RDFExporter rdfExporter = new RDFExporter();
+	ApiManager apiManager = new ApiManager();
 	
 	@Test
 	public void test(){
@@ -67,7 +75,6 @@ public class TestFedEHRConnection {
 			
 
 			this.ouput = new FileWriter("src/test/resources/patient.rdf");
-			this.rdfExporter = new RDFExporter();
 			
 			getPatients(fedConnection);
 
@@ -86,10 +93,6 @@ public class TestFedEHRConnection {
 			e.printStackTrace();
 		}
 
-	}
-	
-	private void getAddress(FedEHRConnection fedConnection, Patient patient){
-		//QAdress ==> QCity ==> QCountry
 	}
 	
 	private void getPatients(FedEHRConnection fedConnection) throws ServerError, IOException {
@@ -117,7 +120,15 @@ public class TestFedEHRConnection {
 			Patient p = patients.getPatient().get(0);
 			//QPatient qPatient = new QPatient(); qPatient.setID(String.valueOf(p.getID())); //poss
 			System.out.println(p.getFirstName() + " " + p.getLastName());
-			this.rdfExporter.patient2RDF(p, this.ouput);
+			String patientUrl = this.rdfExporter.patient2RDF(p, this.ouput);
+			Address patientAddress = this.apiManager.getAddress(fedConnection, p);
+			if(patientAddress != null){
+				this.ouput.write(
+						this.rdfExporter.getTripleURIValue(
+								patientUrl, 
+								SemEHR.ADDRESS.getURI(), 
+								this.rdfExporter.address2RDF(patientAddress, this.ouput)));
+			}
 			getMedicalBag(fedConnection, p);
 			qLimitObject = patients.getNextLimits();
 			qLimitedPatient.setLimits(qLimitObject);		
@@ -131,7 +142,7 @@ public class TestFedEHRConnection {
 		QMedicalEvent qMedicalEvent = new QMedicalEvent();
 		QMedicalEventType qMedicalEventType = new QMedicalEventType();
 		qMedicalEvent.setQMedicalEventType(qMedicalEventType);
-
+		
  		QClinicalVariable qClinicalVariable = new QClinicalVariable();
 		//qClinicalVariable.setValueNotAvailable(false);
 		qMedicalEvent.setQClinicalVariable(qClinicalVariable);
@@ -153,7 +164,6 @@ public class TestFedEHRConnection {
 		qLimitObject.getLimitObjectByNode().add(qLimitObjectByNode); //on peut spécifier plusieurs une limit par noeud
 		qLimitedMedicalBag.setLimits(qLimitObject);
 		do{
-			
 			MedicalBags medicalBags = fedConnection.fedEHRPortType.listMedicalBags(qLimitedMedicalBag);
 			for(MedicalBag medicalBag : medicalBags.getMedicalBag()){
 				System.out.println("medical Bag: " +
@@ -191,13 +201,13 @@ public class TestFedEHRConnection {
 	}
 	
 	public void getRelatedClinicalVariables(FedEHRConnection fedEHRConnection, ClinicalVariable clinicalVariable) throws ServerError{
-		//TODO
 		QLimitedClinicalVariable qLimitedClinicalVariable = new QLimitedClinicalVariable();
 		QClinicalVariable qClinicalVariable = new QClinicalVariable();
 		qClinicalVariable.setID(String.valueOf(clinicalVariable.getID()));
 		qLimitedClinicalVariable.setQClinicalVariable(qClinicalVariable);
 		QClinicalVariableQRelatedClinicalVariable qClinicalVariableQRelatedClinicalVariable = new QClinicalVariableQRelatedClinicalVariable();
 		qClinicalVariable.setQRelatedClinicalVariable(qClinicalVariableQRelatedClinicalVariable);
+		
 		
 		QLimitObject qLimitObject = new QLimitObject();
 		QLimitObjectByNode qLimitObjectByNode = new QLimitObjectByNode();
@@ -211,8 +221,6 @@ public class TestFedEHRConnection {
 			ClinicalVariable resultClinicalVariable = clinicalVariables.getClinicalVariable().get(0); 
 			System.out.println("nbRelated :" + resultClinicalVariable.getRelatedClinicalVariables().size());
 		}
-
-		
 	}
 	
 	public void getClinicalVariables(FedEHRConnection fedConnection, MedicalEvent medicalEvent) throws ServerError, IOException{
@@ -220,11 +228,8 @@ public class TestFedEHRConnection {
 		
 		QMedicalEvent qMedicalEvent = new QMedicalEvent();
 		qMedicalEvent.setID(String.valueOf(medicalEvent.getID()));
-		
 		qLimitedMedicalEvent.setQMedicalEvent(qMedicalEvent);
 		
-		
-
 		
 		QLimitObject qLimitObject = new QLimitObject();
 		//qLimitObject.setCountRequested(true);
@@ -344,4 +349,6 @@ public class TestFedEHRConnection {
 		}
 		
 	}
+	
+	
 }
