@@ -14,7 +14,7 @@ import fr.maatg.pandora.clients.commons.exception.ClientError;
 import fr.maatg.pandora.clients.fedehr.utils.FedEHRConnection;
 import fr.maatg.pandora.ns.idal.ServerError;
 
-public class OldCrawler {
+public class IterativeCrawler {
 
 	public static void main(String[] args) {
 		try {

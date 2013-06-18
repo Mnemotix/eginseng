@@ -27,53 +27,57 @@ public class AkkaCrawler {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-			try {
-				
-				Properties properties = new Properties();
-				FileReader fileReader = new FileReader(args[0]);
-				properties.load(fileReader);
-				String pwd = properties.getProperty("pwd");
-				String fedEHRServiceURL = properties.getProperty("fedehr.service.url");
-				String certFile = properties.getProperty("usercert");
-				String keyFile = properties.getProperty("userkey");
-				String caPathPattern = "file:"+properties.getProperty("capath.pattern.path");
-				long receiveTimeout = Long.parseLong(properties.getProperty("receivetimeout")); //10 minutes
-				final FedEHRConnection fedConnection = new FedEHRConnection(fedEHRServiceURL, certFile, keyFile, caPathPattern, pwd, receiveTimeout);
-				System.out.println(fedConnection.fedEHRPortType.getLocalHospitalNodeName(""));
-				
-				AkkaCrawler task = new AkkaCrawler();
-//TODO count patient	final int nbtags = task.getNbTags();
-
-				// Create an Akka system
-				final ActorSystem system = ActorSystem.create(task.getClass().getSimpleName());
-				
-				// create the worker
-				final int nbOfWorkers = 3;
-				final int total = 30; 
-				final int limit = 10;
-				
-				ActorRef master = system.actorOf(Props.create(Master.class, nbOfWorkers));
-
-				
-				// start the process
-				master.tell(new Go(fedConnection, nbOfWorkers, total, limit), null);
-
-			} catch (CredentialException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (ClientError e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (ServerError e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-
+		//Handle parameters
+		String propertyFileName = args[0];
+		final int nbOfWorkers = Integer.valueOf(args[1]);
+		run(nbOfWorkers, propertyFileName);
 	}
 	
+	
+	public static void run(int nbOfWorkers, String propertyFileName){
+		try{
+			Properties properties = new Properties();
+			FileReader fileReader = new FileReader(propertyFileName);
+			properties.load(fileReader);
+			String pwd = properties.getProperty("pwd");
+			String fedEHRServiceURL = properties.getProperty("fedehr.service.url");
+			String certFile = properties.getProperty("usercert");
+			String keyFile = properties.getProperty("userkey");
+			String caPathPattern = "file:"+properties.getProperty("capath.pattern.path");
+			long receiveTimeout = Long.parseLong(properties.getProperty("receivetimeout")); //10 minutes
+			final FedEHRConnection fedConnection = new FedEHRConnection(fedEHRServiceURL, certFile, keyFile, caPathPattern, pwd, receiveTimeout);
+			System.out.println(fedConnection.fedEHRPortType.getLocalHospitalNodeName(""));
+			
+			AkkaCrawler task = new AkkaCrawler();
+//TODO count patient	final int nbtags = task.getNbTags();
+
+			// Create an Akka system
+			final ActorSystem system = ActorSystem.create(task.getClass().getSimpleName());
+			
+			// create the worker
+			final int total = ApiManager.countAllPatients(fedConnection);
+			final int limit = total / nbOfWorkers;
+			
+			ActorRef master = system.actorOf(Props.create(Master.class, nbOfWorkers));
+
+			
+			// start the process
+			master.tell(new Go(fedConnection, nbOfWorkers, total, limit), null);
+
+		} catch (CredentialException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ClientError e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ServerError e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
 	
 	public static class Master extends UntypedActor {
 		
@@ -83,6 +87,7 @@ public class AkkaCrawler {
 		private final ActorRef workerRouter;
 		
 		public Master(int nbOfWorkers){
+			remaining = nbOfWorkers;
 			workerRouter = this.getContext().actorOf(Props.create(Worker.class).withRouter(new RoundRobinRouter(nbOfWorkers)), "workerRouter");
 		}
 		
@@ -98,10 +103,10 @@ public class AkkaCrawler {
 
 			} else if (message instanceof Done) {
 				Done done = (Done) message;
-				processed += done.getCount();
+				processed += done.getOffset();
 
 				if (--this.remaining == 0) {
-					//finished
+					this.getContext().system().shutdown();
 				}
 			} else {
 				unhandled(message);
@@ -120,12 +125,15 @@ public class AkkaCrawler {
 				System.out.println(hospitalNode + work.getOffset());
 				ApiManager.crawlPatientPage(work.getFedConnection(), writer, work.getLimit(),work.getOffset());
 				writer.close();
+				getSender().tell(new Done(work.getOffset()), getSelf());
+			}else {
+				unhandled(message);
 			}
 
 		}
 
 	}
-
+	
 	
 	/*
 	 * -- MESSAGES --
@@ -173,14 +181,14 @@ public class AkkaCrawler {
 	}
 
 	static class Done {
-		private final int count;
+		private final int offset;
 
-		public Done(int count) {
-			this.count = count;
+		public Done(int offset) {
+			this.offset = offset;
 		}
 
-		public int getCount() {
-			return count;
+		public int getOffset() {
+			return offset;
 		}
 	}
 

@@ -30,7 +30,23 @@ import fr.maatg.pandora.ns.idal.ServerError;
 public class ApiManager {
 	
 	public static int countAllPatients(FedEHRConnection fedConnection){
-		
+		int count = 0;
+
+		try {
+			QLimitedPatient qLimitedPatient = ApiManager.getQLimitedPatient(fedConnection, 1, 0, true);
+			//fedConnection.fedEHRPortType.listPatients(qLimitedPatient);
+
+			Patients patients = fedConnection.fedEHRPortType.listPatients(qLimitedPatient);
+			for(QLimitObjectByNode qLimitObjectByNode : patients.getNextLimits().getLimitObjectByNode()){
+				count += qLimitObjectByNode.getTotalResults();
+			}
+			System.out.println("total: " + count);
+
+		} catch (ServerError e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return count;
 	}
 	
 	public static boolean crawlPatientPage(FedEHRConnection fedConnection, Writer writer, int pageSize, int offset){
@@ -40,8 +56,10 @@ public class ApiManager {
 			stopWatch.start();
 			RDFExporter rdfExporter = new RDFExporter();
 			
-			QLimitedPatient  qLimitedPatient = ApiManager.getQLimitedPatient(fedConnection, pageSize, offset, false);
+			QLimitedPatient  qLimitedPatient = ApiManager.getQLimitedPatient(fedConnection, pageSize, offset, true);
+
 			Patients patients = fedConnection.fedEHRPortType.listPatients(qLimitedPatient);
+			
 			for(Patient patient : patients.getPatient()){
 				String patientUrl = rdfExporter.patient2RDF(patient, writer);
 				Address patientAddress = ApiManager.getAddress(fedConnection, patient);
@@ -66,9 +84,12 @@ public class ApiManager {
 				} while(!qLimitedMedicalBag.getLimits().isFinished());
 				
 			}
+
 			qLimitedPatient.setLimits(patients.getNextLimits());		
 			stopWatch.stop();
 			System.out.println(stopWatch.getTime());
+
+
 			return patients.getNextLimits().isFinished();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
