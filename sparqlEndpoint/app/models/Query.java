@@ -2,6 +2,7 @@ package models;
 
 import com.mnemotix.mnemokit.exception.MnxException;
 import com.mnemotix.mnemokit.semweb.CoreseManager;
+import com.mnemotix.mnemokit.semweb.SPARQLResultFormat;
 import com.mnemotix.mnemokit.semweb.api.QueryManager;
 
 import play.data.validation.Constraints.Required;
@@ -12,7 +13,7 @@ public class Query {
 	public String query;
 
 	public String format;
-	
+
 	private QueryManager queryManager;
 
 	public Query(){
@@ -23,9 +24,25 @@ public class Query {
 		this.query = query;
 	}
 	
+	public Query(String query, String format){
+		this.query = query;
+		this.format = format;
+	}
+	
 	public String run(){
 		try {
-			return this.queryManager.query(query);
+			System.out.println(format);
+			System.out.println(SPARQLResultFormat.CSV);
+			System.out.println(format.equals(SPARQLResultFormat.CSV.toString().toLowerCase()));
+			//System.out.println(SPARQLResultFormat.valueOf(format));
+			if(format.equals(SPARQLResultFormat.CSV.toString().toLowerCase())){
+				return this.queryManager.query(query, SPARQLResultFormat.CSV);				
+			}
+			if(format.equals(SPARQLResultFormat.XML.toString().toLowerCase())){
+				return this.queryManager.query(query, SPARQLResultFormat.XML);				
+			}
+			return this.queryManager.query(query, SPARQLResultFormat.JSON);
+
 		} catch (MnxException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -49,6 +66,14 @@ public class Query {
 	public void setQuery(String query) {
 		this.query = query;
 	}
+
 	
+	public String getFormat() {
+		return format;
+	}
+
+	public void setFormat(String format) {
+		this.format = format;
+	}
 	
 }
