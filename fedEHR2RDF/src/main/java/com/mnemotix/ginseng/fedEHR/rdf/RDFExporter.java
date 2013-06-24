@@ -40,7 +40,7 @@ public class RDFExporter {
 	}
 
 	public String getTripleLiteralValue(String subject, String property, String value){
-		return "<"+subject+"> " + "<"+property+"> \""+value+"\" . \n" ;
+		return "<"+subject+"> " + "<"+property+"> "+value+" . \n" ;
 	}
 	
 	public void writeTripleURIValue(Writer output, String subject, String property, String value) throws IOException{
@@ -52,17 +52,20 @@ public class RDFExporter {
 	}
 	
 	public String buildLiteralValue(String label, String datatype){
-		return label + "^^" +datatype;
+		if(datatype == null){
+			return "\""+label + "\"";
+		}
+		return "\""+label + "\"^^<" +datatype+">";
 	}
 	
 	public String patient2RDF(Patient patient, Writer output) throws IOException{
 		String patientURL = baseURL + "patient-" + patient.getHospitalNode() + "-" + patient.getID();
 		output.write(getTripleURIValue(patientURL, RDF.type.getURI(), SemEHR.PATIENT.getURI()));
 		if(patient.getDateOfBirth() != null){
-			output.write(getTripleURIValue(patientURL, SemEHR.BIRTH_DATE.getURI(), buildLiteralValue(patient.getDateOfBirth().toXMLFormat(), DatatypeMap.xsddate)));
+			output.write(getTripleLiteralValue(patientURL, SemEHR.BIRTH_DATE.getURI(), buildLiteralValue(patient.getDateOfBirth().toXMLFormat(), DatatypeMap.xsddate)));
 		}
-		output.write(getTripleLiteralValue(patientURL, Foaf.FIRST_NAME.getURI(), patient.getFirstName()));
-		output.write(getTripleLiteralValue(patientURL, Foaf.LAST_NAME.getURI(), patient.getLastName()));
+		output.write(getTripleLiteralValue(patientURL, Foaf.FIRST_NAME.getURI(), buildLiteralValue(patient.getFirstName(), DatatypeMap.xsdstring)));
+		output.write(getTripleLiteralValue(patientURL, Foaf.LAST_NAME.getURI(), buildLiteralValue(patient.getLastName(), DatatypeMap.xsdstring)));
 		/*Address patientAddress = patient.getAddress();
 		if(patientAddress != null){
 			output.write(getTripleURIValue(patientURL, SemEHR.ADDRESS.getURI(), address2RDF(patientAddress, output)));
@@ -82,7 +85,7 @@ public class RDFExporter {
 		if(address.getCity() != null){
 			String cityURL =  baseURL + "city-" + address.getHospitalNode() + "-" + address.getCity().getID();
 			writeTripleURIValue(output, addressURL, SemEHR.CITY.getURI(), cityURL);
-			writeTripleLiteralValue(output, cityURL, RDFS.label.getURI(), address.getCity().getName());;
+			writeTripleLiteralValue(output, cityURL, RDFS.label.getURI(), buildLiteralValue(address.getCity().getName(), DatatypeMap.xsdstring));;
 			writeTripleURIValue(output, cityURL, RDF.type.getURI(), SemEHR.CITY_INSTANCE.getURI());
 		}
 		return addressURL;
@@ -96,7 +99,7 @@ public class RDFExporter {
 				getTripleLiteralValue(
 					medicalBagURL, 
 					DC.date.getURI(), 
-					buildLiteralValue(medicalBag.getMedicalBagDate().toXMLFormat(), DatatypeMap.xsddateTime)));
+					buildLiteralValue(medicalBag.getMedicalBagDate().toXMLFormat(), DatatypeMap.xsddate)));
 		}
 		List<MedicalEvent> medicalEvents = medicalBag.getMedicalEvents();
 		if(medicalEvents != null){
@@ -120,12 +123,12 @@ public class RDFExporter {
 				getTripleLiteralValue(
 					medicalEventURL, 
 					DC.date.getURI(), 
-					buildLiteralValue(medicalEvent.getEventDate().toXMLFormat(), DatatypeMap.xsddateTime)));
+					buildLiteralValue(medicalEvent.getEventDate().toXMLFormat(), DatatypeMap.xsddate)));
 		}
 		if(!typePrimitives.contains(medicalEventTypeURL)){
 			//Write Clinical Variable type Description
 			output.write(getTripleURIValue(medicalEventTypeURL, RDF.type.getURI(), OWL.Class.getURI()));
-			output.write(getTripleLiteralValue(medicalEventTypeURL, RDFS.label.getURI(), medicalEventType.getName()));
+			output.write(getTripleLiteralValue(medicalEventTypeURL, RDFS.label.getURI(), buildLiteralValue(medicalEventType.getName(), DatatypeMap.xsdstring)));
 			output.write(getTripleURIValue(medicalEventTypeURL, RDFS.subClassOf.getURI(), SemEHR.MEDICAL_EVENT.getURI()));
 			typePrimitives.add(medicalEventTypeURL);
 		}
@@ -146,7 +149,7 @@ public class RDFExporter {
 		if(!typePrimitives.contains(clinicalVariableTypeURL)){
 			//Write Clinical Variable type Description
 			output.write(getTripleURIValue(clinicalVariableTypeURL, RDF.type.getURI(), OWL.Class.getURI()));
-			output.write(getTripleLiteralValue(clinicalVariableTypeURL, RDFS.label.getURI(), clinicalVariable.getTypeName()));
+			output.write(getTripleLiteralValue(clinicalVariableTypeURL, RDFS.label.getURI(), buildLiteralValue(clinicalVariable.getTypeName(), DatatypeMap.xsdstring)));
 			output.write(getTripleURIValue(clinicalVariableTypeURL, RDFS.subClassOf.getURI(), SemEHR.CLINICAL_VARIABLE.getURI()));
 			typePrimitives.add(clinicalVariableTypeURL);
 		}
@@ -166,7 +169,7 @@ public class RDFExporter {
 						getTripleLiteralValue(
 							clinicalVariableURL, 
 							SemEHR.ANNOTATION.getURI(), 
-							annotation.getValue()));
+							buildLiteralValue(annotation.getValue(), DatatypeMap.xsdstring)));
 			}
 		}catch(ClassCastException classCastException){
 			//OK This is not an annotation
@@ -202,7 +205,7 @@ public class RDFExporter {
 					getTripleLiteralValue(
 						clinicalVariableURL, 
 						SemEHR.VALUE.getURI(), 
-						buildLiteralValue(dateValue.getValue().toXMLFormat(), DatatypeMap.xsddateTime)));
+						buildLiteralValue(dateValue.getValue().toXMLFormat(), DatatypeMap.xsddate)));
 			}
 		}catch(ClassCastException classCastException){
 			//OK This is not an boolean value

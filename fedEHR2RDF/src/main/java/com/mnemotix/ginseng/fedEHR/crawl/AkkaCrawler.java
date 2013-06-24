@@ -49,13 +49,12 @@ public class AkkaCrawler {
 			System.out.println(fedConnection.fedEHRPortType.getLocalHospitalNodeName(""));
 			
 			AkkaCrawler task = new AkkaCrawler();
-//TODO count patient	final int nbtags = task.getNbTags();
-
 			// Create an Akka system
 			final ActorSystem system = ActorSystem.create(task.getClass().getSimpleName());
 			
 			// create the worker
 			final int total = ApiManager.countAllPatients(fedConnection);
+			//final int total = 10; //pour test
 			final int limit = total / nbOfWorkers;
 			
 			ActorRef master = system.actorOf(Props.create(Master.class, nbOfWorkers));
@@ -121,7 +120,7 @@ public class AkkaCrawler {
 			if (message instanceof Work) {
 				Work work = (Work) message;
 				String hospitalNode = work.getFedConnection().fedEHRPortType.getLocalHospitalNodeName("");
-				Writer writer = new FileWriter("src/main/resources/"+hospitalNode+"_"+work.getOffset());
+				Writer writer = new FileWriter("src/main/resources/"+hospitalNode+"_"+work.getOffset()+".ttl");
 				System.out.println(hospitalNode + work.getOffset());
 				ApiManager.crawlPatientPage(work.getFedConnection(), writer, work.getLimit(),work.getOffset());
 				writer.close();
