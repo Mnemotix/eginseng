@@ -12,7 +12,7 @@ public class Query {
 	@Required
 	public String query;
 
-	public String format;
+	public String format = SPARQLResultFormat.JSON.toString();;
 
 	private QueryManager queryManager;
 
@@ -31,10 +31,6 @@ public class Query {
 	
 	public String run(){
 		try {
-			System.out.println(format);
-			System.out.println(SPARQLResultFormat.CSV);
-			System.out.println(format.equals(SPARQLResultFormat.CSV.toString().toLowerCase()));
-			//System.out.println(SPARQLResultFormat.valueOf(format));
 			if(format.equals(SPARQLResultFormat.CSV.toString().toLowerCase())){
 				return this.queryManager.query(query, SPARQLResultFormat.CSV);				
 			}

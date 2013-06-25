@@ -1,0 +1,17 @@
+@import helper._
+
+@main("LOAD") {
+    @form(routes.Application.load()){    
+    	RDF Source Path:
+        <br/>
+        <input type="text" name="rdfSourcePath" size="80" value="resources/"/>
+        <br/>
+        <br/>
+        Graph Name:
+        <br/>
+        <input type="text" name="graph" size="80" value="http://e-ginseng.org/graph/"/>
+        <br/>
+        
+        <input type="submit" value="Load"/>
+   }    
+}
