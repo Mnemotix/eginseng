@@ -10,7 +10,7 @@ GET     /sparql                     controllers.Application.sparqlQuery()
 POST    /sparql                     controllers.Application.sparqlQuery()
 
 # Loader
-GET     /load                     controllers.Application.load()
+GET	     /load                     controllers.Application.load()
 POST     /load                     controllers.Application.load()
 
 # Map static resources from the /public folder to the /assets URL path

@@ -14,24 +14,30 @@ import com.mnemotix.ginseng.vocabulary.Foaf;
 import com.mnemotix.ginseng.vocabulary.SemEHR;
 
 import fr.inria.acacia.corese.cg.datatype.DatatypeMap;
+import fr.maatg.pandora.clients.fedehr.exception.InvalidDataError;
+import fr.maatg.pandora.clients.fedehr.utils.FedEHRConnection;
+import fr.maatg.pandora.clients.fedehr.utils.FedEHRObjectFactory;
+import fr.maatg.pandora.clients.fedehr.utils.FedEHRTypeUtils;
 import fr.maatg.pandora.ns.idal.Address;
 import fr.maatg.pandora.ns.idal.Annotation;
 import fr.maatg.pandora.ns.idal.BooleanValue;
 import fr.maatg.pandora.ns.idal.ClinicalVariable;
 import fr.maatg.pandora.ns.idal.ClinicalVariableRelatedClinicalVariables;
+import fr.maatg.pandora.ns.idal.ClinicalVariableType;
+import fr.maatg.pandora.ns.idal.ClinicalVariableTypeRelatedClinicalVariableType;
 import fr.maatg.pandora.ns.idal.DateValue;
 import fr.maatg.pandora.ns.idal.IntegerValue;
 import fr.maatg.pandora.ns.idal.MedicalBag;
 import fr.maatg.pandora.ns.idal.MedicalEvent;
 import fr.maatg.pandora.ns.idal.MedicalEventType;
+import fr.maatg.pandora.ns.idal.MedicalEventTypeContainedCVT;
 import fr.maatg.pandora.ns.idal.Patient;
+import fr.maatg.pandora.ns.idal.ServerError;
 
 public class RDFExporter {
 	
 	String baseURL = "http://e-ginseng.org/";
 	//TODO relatedclinicalVariable
-	//TODO address
-	//TODO type
 	
 	public HashSet<String> typePrimitives = new HashSet<String>();
 	
@@ -215,6 +221,25 @@ public class RDFExporter {
 		for(ClinicalVariableRelatedClinicalVariables clinicalVariableRelatedClinicalVariables : relatedClinicalVariables){
 		}
 		return clinicalVariableURL;
+	}
+	
+
+	private void navigateClinicalVariableTypeFromMedicalEvent(FedEHRConnection fedEHRConnection, MedicalEvent medicalEvent) throws InvalidDataError, ServerError{
+		FedEHRTypeUtils fedEHRTypeUtils = new FedEHRTypeUtils(new FedEHRObjectFactory(fedEHRConnection.fedEHRPortType));
+		MedicalEventTypeContainedCVT topMETCCVT = 
+				fedEHRTypeUtils.getTopElementWithChildren(medicalEvent.getMedicalEventType()).get(0);
+		ClinicalVariableType topCCVT = topMETCCVT.getClinicalVariableType().getValue();
+		navigateCVT(0,topCCVT);
+	}
+		
+	private void navigateCVT(int level, ClinicalVariableType clinicalVariableType) {
+		String indent ="";
+		for (int i=0;i<level;i++)
+			indent+="-";
+		System.out.println(indent+clinicalVariableType.getName()); 
+		for (ClinicalVariableTypeRelatedClinicalVariableType clinicalVariableTypeRelatedClinicalVariableType : clinicalVariableType.getRelatedClinicalVariableType()) {
+			navigateCVT(level+1,clinicalVariableTypeRelatedClinicalVariableType.getClinicalVariableType());
+		}
 	}
 	
 	

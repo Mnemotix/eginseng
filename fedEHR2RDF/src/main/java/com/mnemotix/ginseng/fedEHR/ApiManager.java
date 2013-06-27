@@ -183,6 +183,8 @@ public class ApiManager {
 	public static QLimitedPatient getQLimitedPatient(FedEHRConnection fedConnection, int limit, int offset, boolean countRequested) throws ServerError{
 		QLimitedPatient qLimitedPatient = new QLimitedPatient(); 
 		QPatient qPatient = new QPatient();
+		QMedicalBag qMedicalBag = new QMedicalBag();
+		qPatient.setQMedicalBag(qMedicalBag);
 		qPatient.setHospitalNode(fedConnection.fedEHRPortType.getLocalHospitalNodeName(""));
 		qLimitedPatient.setQPatient(qPatient);
 		QLimitObject qLimitObject = new QLimitObject();
