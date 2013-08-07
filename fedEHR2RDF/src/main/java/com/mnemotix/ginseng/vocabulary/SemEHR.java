@@ -37,6 +37,9 @@ public class SemEHR {
     /** <p>city property</p> */
     public static final Property CITY = m_model.createProperty( "http://www.mnemotix.com/ontology/semEHR#city" );
     
+    /** <p>postal code property</p> */
+    public static final Property POSTAL_CODE = m_model.createProperty( "http://www.mnemotix.com/ontology/semEHR#postalCode" );
+    
     /** <p>A clinical variable is the final element of the structure. It can represent 
      *  a value or a group of value, or a group of group of value and so on. There 
      *  is no restriction to the deep that FedEHR can manage, but it is recommended 

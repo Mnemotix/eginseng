@@ -22,7 +22,6 @@ import fr.maatg.pandora.ns.idal.Address;
 import fr.maatg.pandora.ns.idal.Annotation;
 import fr.maatg.pandora.ns.idal.BooleanValue;
 import fr.maatg.pandora.ns.idal.ClinicalVariable;
-import fr.maatg.pandora.ns.idal.ClinicalVariableRelatedClinicalVariables;
 import fr.maatg.pandora.ns.idal.ClinicalVariableType;
 import fr.maatg.pandora.ns.idal.ClinicalVariableTypeRelatedClinicalVariableType;
 import fr.maatg.pandora.ns.idal.DateValue;
@@ -37,7 +36,6 @@ import fr.maatg.pandora.ns.idal.ServerError;
 public class RDFExporter {
 	
 	String baseURL = "http://e-ginseng.org/";
-	//TODO relatedclinicalVariable
 	
 	public HashSet<String> typePrimitives = new HashSet<String>();
 	
@@ -91,7 +89,8 @@ public class RDFExporter {
 		if(address.getCity() != null){
 			String cityURL =  baseURL + "city-" + address.getHospitalNode() + "-" + address.getCity().getID();
 			writeTripleURIValue(output, addressURL, SemEHR.CITY.getURI(), cityURL);
-			writeTripleLiteralValue(output, cityURL, RDFS.label.getURI(), buildLiteralValue(address.getCity().getName(), DatatypeMap.xsdstring));;
+			writeTripleLiteralValue(output, cityURL, RDFS.label.getURI(), buildLiteralValue(address.getCity().getName(), DatatypeMap.xsdstring));
+			writeTripleLiteralValue(output, cityURL,  SemEHR.POSTAL_CODE.getURI(), buildLiteralValue(address.getZIP(), DatatypeMap.xsdstring));
 			writeTripleURIValue(output, cityURL, RDF.type.getURI(), SemEHR.CITY_INSTANCE.getURI());
 		}
 		return addressURL;
@@ -150,15 +149,8 @@ public class RDFExporter {
 	public String clinicalVariable2RDF(ClinicalVariable clinicalVariable, Writer output) throws IOException{
 		String clinicalVariableURL =  baseURL + "clinicalVariable-" + clinicalVariable.getHospitalNode() + "-" + clinicalVariable.getID();
 		output.write(getTripleURIValue(clinicalVariableURL, RDF.type.getURI(), SemEHR.CLINICAL_VARIABLE.getURI()));
-		String clinicalVariableTypeURL = SemEHR.NS + "ClinicalVariableType-"+clinicalVariable.getMedicalEventTypeID() +"-"+ clinicalVariable.getTypeName().replaceAll	("\\s", "");
+		String clinicalVariableTypeURL = buildClinicalVariableTypeURI(String.valueOf(clinicalVariable.getClinicalVariableTypeID()), clinicalVariable.getTypeName());
 		output.write(getTripleURIValue(clinicalVariableURL, RDF.type.getURI(), clinicalVariableTypeURL));
-		if(!typePrimitives.contains(clinicalVariableTypeURL)){
-			//Write Clinical Variable type Description
-			output.write(getTripleURIValue(clinicalVariableTypeURL, RDF.type.getURI(), OWL.Class.getURI()));
-			output.write(getTripleLiteralValue(clinicalVariableTypeURL, RDFS.label.getURI(), buildLiteralValue(clinicalVariable.getTypeName(), DatatypeMap.xsdstring)));
-			output.write(getTripleURIValue(clinicalVariableTypeURL, RDFS.subClassOf.getURI(), SemEHR.CLINICAL_VARIABLE.getURI()));
-			typePrimitives.add(clinicalVariableTypeURL);
-		}
 		
 		clinicalVariable.getClinicalVariableTypeID();
 		if(clinicalVariable.getAcquisitionDate() != null){
@@ -174,7 +166,7 @@ public class RDFExporter {
 				output.write(
 						getTripleLiteralValue(
 							clinicalVariableURL, 
-							SemEHR.ANNOTATION.getURI(), 
+							SemEHR.VALUE.getURI(), 
 							buildLiteralValue(annotation.getValue(), DatatypeMap.xsdstring)));
 			}
 		}catch(ClassCastException classCastException){
@@ -216,18 +208,14 @@ public class RDFExporter {
 		}catch(ClassCastException classCastException){
 			//OK This is not an boolean value
 		}
-		//TODO get related clinical variable and write rdf into output
-		List<ClinicalVariableRelatedClinicalVariables> relatedClinicalVariables = clinicalVariable.getRelatedClinicalVariables();
-		for(ClinicalVariableRelatedClinicalVariables clinicalVariableRelatedClinicalVariables : relatedClinicalVariables){
-		}
+		
 		return clinicalVariableURL;
 	}
-	
 
-	private void navigateClinicalVariableTypeFromMedicalEvent(FedEHRConnection fedEHRConnection, MedicalEvent medicalEvent) throws InvalidDataError, ServerError{
+	
+	public void navigateCVTFromMedicalEvent(FedEHRConnection fedEHRConnection, MedicalEvent medicalEvent) throws InvalidDataError, ServerError {
 		FedEHRTypeUtils fedEHRTypeUtils = new FedEHRTypeUtils(new FedEHRObjectFactory(fedEHRConnection.fedEHRPortType));
-		MedicalEventTypeContainedCVT topMETCCVT = 
-				fedEHRTypeUtils.getTopElementWithChildren(medicalEvent.getMedicalEventType()).get(0);
+		MedicalEventTypeContainedCVT topMETCCVT = fedEHRTypeUtils.getTopElementWithChildren(medicalEvent.getMedicalEventType()).get(0);
 		ClinicalVariableType topCCVT = topMETCCVT.getClinicalVariableType().getValue();
 		navigateCVT(0,topCCVT);
 	}
@@ -246,4 +234,13 @@ public class RDFExporter {
 	public String buildClinicalVariableURL(ClinicalVariable clinicalVariable){
 		return baseURL + "clinicalVariable-" + clinicalVariable.getHospitalNode() + "-" + clinicalVariable.getID();
 	}
+
+	public String buildClinicalVariableTypeURI(String cvtID, String cvtName){
+		return SemEHR.NS + "ClinicalVariableType-"+cvtID +"-"+ cvtName.replaceAll("\\s", "");
+	}
+
+	public String buildClinicalVariableTypeURI(ClinicalVariableType clinicalVariableType) {
+		return buildClinicalVariableTypeURI(String.valueOf(clinicalVariableType.getID()), clinicalVariableType.getName());
+	}
+		
 }

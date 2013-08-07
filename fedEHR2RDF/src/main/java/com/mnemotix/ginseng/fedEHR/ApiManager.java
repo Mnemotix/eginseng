@@ -2,16 +2,19 @@ package com.mnemotix.ginseng.fedEHR;
 
 import java.io.IOException;
 import java.io.Writer;
+import java.util.List;
 
 import org.apache.commons.lang.time.StopWatch;
 
 import com.mnemotix.ginseng.fedEHR.rdf.RDFExporter;
 import com.mnemotix.ginseng.vocabulary.SemEHR;
 
+import fr.maatg.pandora.clients.fedehr.exception.InvalidDataError;
 import fr.maatg.pandora.clients.fedehr.utils.FedEHRConnection;
 import fr.maatg.pandora.ns.idal.Address;
 import fr.maatg.pandora.ns.idal.MedicalBag;
 import fr.maatg.pandora.ns.idal.MedicalBags;
+import fr.maatg.pandora.ns.idal.MedicalEvent;
 import fr.maatg.pandora.ns.idal.Patient;
 import fr.maatg.pandora.ns.idal.Patients;
 import fr.maatg.pandora.ns.idal.QAddress;
@@ -33,7 +36,7 @@ public class ApiManager {
 		int count = 0;
 
 		try {
-			QLimitedPatient qLimitedPatient = ApiManager.getQLimitedPatient(fedConnection, 1, 0, true);
+			QLimitedPatient qLimitedPatient = ApiManager.getQLimitedPatient(fedConnection, 1, 0, true, true);
 			//fedConnection.fedEHRPortType.listPatients(qLimitedPatient);
 
 			Patients patients = fedConnection.fedEHRPortType.listPatients(qLimitedPatient);
@@ -49,41 +52,18 @@ public class ApiManager {
 		return count;
 	}
 	
-	public static boolean crawlPatientPage(FedEHRConnection fedConnection, Writer writer, int pageSize, int offset){
+	public static boolean crawlPatients(FedEHRConnection fedConnection, Writer writer, int pageSize, int offset){
 		try {
 
 			StopWatch stopWatch = new StopWatch();
 			stopWatch.start();
 			RDFExporter rdfExporter = new RDFExporter();
 			
-			QLimitedPatient  qLimitedPatient = ApiManager.getQLimitedPatient(fedConnection, pageSize, offset, true);
+			QLimitedPatient  qLimitedPatient = ApiManager.getQLimitedPatient(fedConnection, pageSize, offset, true, true);
 
 			Patients patients = fedConnection.fedEHRPortType.listPatients(qLimitedPatient);
-			
-			for(Patient patient : patients.getPatient()){
-				String patientUrl = rdfExporter.patient2RDF(patient, writer);
-				Address patientAddress = ApiManager.getAddress(fedConnection, patient);
-				if(patientAddress != null){
-					rdfExporter.writeTripleURIValue(
-						writer,
-						patientUrl, 
-						SemEHR.ADDRESS.getURI(), 
-						rdfExporter.address2RDF(patientAddress, writer));
-				}
-				
-				QLimitedMedicalBag qLimitedMedicalBag = ApiManager.getQLimitedMedicalBag(fedConnection, patient, true);
-				MedicalBags medicalBags;
-				do{
-					medicalBags = fedConnection.fedEHRPortType.listMedicalBags(qLimitedMedicalBag);
-					for(MedicalBag medicalBag : medicalBags.getMedicalBag()){
-						rdfExporter.medicalBag2RDF(medicalBag, writer);
-					}
-				
-					qLimitedMedicalBag.setLimits(medicalBags.getNextLimits());
-					
-				} while(!qLimitedMedicalBag.getLimits().isFinished());
-				
-			}
+			List<Patient> patientList = patients.getPatient();
+			getMedicalBags(fedConnection, writer, rdfExporter, patientList);
 
 			qLimitedPatient.setLimits(patients.getNextLimits());		
 			stopWatch.stop();
@@ -101,6 +81,50 @@ public class ApiManager {
 		return true;
 
 	}
+
+	/**
+	 * @param fedConnection
+	 * @param writer
+	 * @param rdfExporter
+	 * @param patientList
+	 * @throws IOException
+	 * @throws ServerError
+	 */
+	public static void getMedicalBags(
+			FedEHRConnection fedConnection,
+			Writer writer, 
+			RDFExporter rdfExporter, 
+			List<Patient> patientList) throws IOException, ServerError {
+		for(Patient patient : patientList){
+			String patientUrl = rdfExporter.patient2RDF(patient, writer);
+			Address patientAddress = ApiManager.getAddress(fedConnection, patient);
+			if(patientAddress != null){
+				rdfExporter.writeTripleURIValue(
+					writer,
+					patientUrl, 
+					SemEHR.ADDRESS.getURI(), 
+					rdfExporter.address2RDF(patientAddress, writer));
+			}
+			
+			QLimitedMedicalBag qLimitedMedicalBag = ApiManager.getQLimitedMedicalBag(fedConnection, patient, true);
+			MedicalBags medicalBags;
+			do{
+				medicalBags = fedConnection.fedEHRPortType.listMedicalBags(qLimitedMedicalBag);
+				for(MedicalBag medicalBag : medicalBags.getMedicalBag()){
+					rdfExporter.medicalBag2RDF(medicalBag, writer);
+					for(MedicalEvent medicalEvent: medicalBag.getMedicalEvents()){
+						try {
+							rdfExporter.navigateCVTFromMedicalEvent(fedConnection, medicalEvent);
+						} catch (InvalidDataError e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+					}
+				}
+				qLimitedMedicalBag.setLimits(medicalBags.getNextLimits());
+			} while(!qLimitedMedicalBag.getLimits().isFinished());
+		}
+	}
 	
 	public static void crawlAllPatients(FedEHRConnection fedConnection, Writer writer, int pageSize){
 		try {
@@ -109,7 +133,7 @@ public class ApiManager {
 			stopWatch.start();
 			RDFExporter rdfExporter = new RDFExporter();
 			
-			QLimitedPatient  qLimitedPatient = ApiManager.getQLimitedPatient(fedConnection, pageSize);
+			QLimitedPatient  qLimitedPatient = ApiManager.getQLimitedPatient(fedConnection, pageSize, true);
 			Patients patients;
 			do{
 				patients = fedConnection.fedEHRPortType.listPatients(qLimitedPatient);
@@ -129,6 +153,9 @@ public class ApiManager {
 					do{
 						medicalBags = fedConnection.fedEHRPortType.listMedicalBags(qLimitedMedicalBag);
 						for(MedicalBag medicalBag : medicalBags.getMedicalBag()){
+							/*for(MedicalEvent medicalEvent : medicalBag.getMedicalEvents()){
+								rdfExporter.navigateCVTFromMedicalEvent(fedConnection, medicalEvent);
+							}*/
 							rdfExporter.medicalBag2RDF(medicalBag, writer);
 						}
 					
@@ -149,7 +176,7 @@ public class ApiManager {
 		} catch (ServerError e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		}
+		} 
 	}
 
 	
@@ -176,16 +203,16 @@ public class ApiManager {
 	}
 	
 
-	public static QLimitedPatient getQLimitedPatient(FedEHRConnection fedConnection, int limit) throws ServerError{
-		return getQLimitedPatient(fedConnection, limit, 0, false);
+	public static QLimitedPatient getQLimitedPatient(FedEHRConnection fedConnection, int limit, boolean fillMediacalBag) throws ServerError{
+		return getQLimitedPatient(fedConnection, limit, 0, false, fillMediacalBag);
 	}
 	
-	public static QLimitedPatient getQLimitedPatient(FedEHRConnection fedConnection, int limit, int offset, boolean countRequested) throws ServerError{
+	public static QLimitedPatient getQLimitedPatient(FedEHRConnection fedConnection, int limit, int offset, boolean fillMedicalBags, boolean countRequested) throws ServerError{
 		QLimitedPatient qLimitedPatient = new QLimitedPatient(); 
 		QPatient qPatient = new QPatient();
-		QMedicalBag qMedicalBag = new QMedicalBag();
-		qPatient.setQMedicalBag(qMedicalBag);
 		qPatient.setHospitalNode(fedConnection.fedEHRPortType.getLocalHospitalNodeName(""));
+		QMedicalBag qMedicalBag = getQMedicalBag(fedConnection, fillMedicalBags);
+		qPatient.setQMedicalBag(qMedicalBag);
 		qLimitedPatient.setQPatient(qPatient);
 		QLimitObject qLimitObject = new QLimitObject();
 		qLimitObject.setCountRequested(countRequested);
@@ -200,20 +227,25 @@ public class ApiManager {
 	
 	public static QLimitedMedicalBag getQLimitedMedicalBag(FedEHRConnection fedConnection, Patient p, boolean fillMedicalBags) throws ServerError, IOException {
 		QLimitedMedicalBag qLimitedMedicalBag = new QLimitedMedicalBag(); 
-		QMedicalBag qMedicalBag = new QMedicalBag();
-		qMedicalBag.setHospitalNode(fedConnection.fedEHRPortType.getLocalHospitalNodeName(""));
+		QMedicalBag qMedicalBag = getQMedicalBag(fedConnection, fillMedicalBags);
+		qMedicalBag.setPatientID(String.valueOf(p.getID()));
+		qLimitedMedicalBag.setQMedicalBag(qMedicalBag);
+		qLimitedMedicalBag.setQMedicalBag(qMedicalBag);
+		QLimitObject qLimitObject = new QLimitObject();
+		QLimitObjectByNode qLimitObjectByNode = new QLimitObjectByNode();
+		qLimitObjectByNode.setNode(fedConnection.fedEHRPortType.getLocalHospitalNodeName(""));  
+		qLimitObjectByNode.setLimit(10); 
+		qLimitObject.getLimitObjectByNode().add(qLimitObjectByNode); 
+		qLimitedMedicalBag.setLimits(qLimitObject);
 		
-		if(fillMedicalBags){
-			QMedicalEvent qMedicalEvent = new QMedicalEvent();
-			QMedicalEventType qMedicalEventType = new QMedicalEventType();
-			qMedicalEvent.setQMedicalEventType(qMedicalEventType);
-			QClinicalVariable qClinicalVariable = new QClinicalVariable();
-			qMedicalEvent.setQClinicalVariable(qClinicalVariable);
-			qMedicalBag.setQMedicalEvent(qMedicalEvent);
-		}
+		return qLimitedMedicalBag;
+	}
+	
+	public static QLimitedMedicalBag getQLimitedMedicalBag(FedEHRConnection fedConnection, boolean fillMedicalBags) throws ServerError, IOException {
+		QLimitedMedicalBag qLimitedMedicalBag = new QLimitedMedicalBag(); 
+		QMedicalBag qMedicalBag = getQMedicalBag(fedConnection, fillMedicalBags);
 		
 		qLimitedMedicalBag.setQMedicalBag(qMedicalBag);
-		qMedicalBag.setPatientID(String.valueOf(p.getID()));
 		qLimitedMedicalBag.setQMedicalBag(qMedicalBag);
 		QLimitObject qLimitObject = new QLimitObject();
 		QLimitObjectByNode qLimitObjectByNode = new QLimitObjectByNode();
@@ -225,7 +257,26 @@ public class ApiManager {
 		return qLimitedMedicalBag;
 	}
 
-	
+	/**
+	 * @param fedConnection
+	 * @param fillMedicalBags
+	 * @return
+	 * @throws ServerError
+	 */
+	private static QMedicalBag getQMedicalBag(FedEHRConnection fedConnection, boolean fillMedicalBags) throws ServerError {
+		QMedicalBag qMedicalBag = new QMedicalBag();
+		qMedicalBag.setHospitalNode(fedConnection.fedEHRPortType.getLocalHospitalNodeName(""));
+		
+		if(fillMedicalBags){
+			QMedicalEvent qMedicalEvent = new QMedicalEvent();
+			QMedicalEventType qMedicalEventType = new QMedicalEventType();
+			qMedicalEvent.setQMedicalEventType(qMedicalEventType);
+			QClinicalVariable qClinicalVariable = new QClinicalVariable();
+			qMedicalEvent.setQClinicalVariable(qClinicalVariable);
+			qMedicalBag.setQMedicalEvent(qMedicalEvent);
+		}
+		return qMedicalBag;
+	}
 	
 	
 }
