@@ -10,6 +10,7 @@ import com.hp.hpl.jena.vocabulary.DC;
 import com.hp.hpl.jena.vocabulary.OWL;
 import com.hp.hpl.jena.vocabulary.RDF;
 import com.hp.hpl.jena.vocabulary.RDFS;
+import com.mnemotix.ginseng.data.StringUtils;
 import com.mnemotix.ginseng.vocabulary.Foaf;
 import com.mnemotix.ginseng.vocabulary.SemEHR;
 
@@ -70,10 +71,10 @@ public class RDFExporter {
 		}
 		output.write(getTripleLiteralValue(patientURL, Foaf.FIRST_NAME.getURI(), buildLiteralValue(patient.getFirstName(), DatatypeMap.xsdstring)));
 		output.write(getTripleLiteralValue(patientURL, Foaf.LAST_NAME.getURI(), buildLiteralValue(patient.getLastName(), DatatypeMap.xsdstring)));
-		/*Address patientAddress = patient.getAddress();
+		Address patientAddress = patient.getAddress();
 		if(patientAddress != null){
 			output.write(getTripleURIValue(patientURL, SemEHR.ADDRESS.getURI(), address2RDF(patientAddress, output)));
-		}*/
+		}
 		List<MedicalBag> medicalBags = patient.getMedicalBag();
 		if(medicalBags != null){
 			for(MedicalBag medicalBag : medicalBags){
@@ -86,11 +87,11 @@ public class RDFExporter {
 	public String address2RDF(Address address, Writer output) throws IOException{
 		String addressURL =  baseURL + "address-" + address.getHospitalNode() + "-" + address.getID();
 		writeTripleURIValue(output, addressURL, RDF.type.getURI(), SemEHR.ADDRESS_INSTANCE.getURI());
+		writeTripleLiteralValue(output, addressURL,  SemEHR.POSTAL_CODE.getURI(), buildLiteralValue(address.getZIP(), DatatypeMap.xsdstring));
 		if(address.getCity() != null){
 			String cityURL =  baseURL + "city-" + address.getHospitalNode() + "-" + address.getCity().getID();
 			writeTripleURIValue(output, addressURL, SemEHR.CITY.getURI(), cityURL);
 			writeTripleLiteralValue(output, cityURL, RDFS.label.getURI(), buildLiteralValue(address.getCity().getName(), DatatypeMap.xsdstring));
-			writeTripleLiteralValue(output, cityURL,  SemEHR.POSTAL_CODE.getURI(), buildLiteralValue(address.getZIP(), DatatypeMap.xsdstring));
 			writeTripleURIValue(output, cityURL, RDF.type.getURI(), SemEHR.CITY_INSTANCE.getURI());
 		}
 		return addressURL;
@@ -121,7 +122,7 @@ public class RDFExporter {
 		String medicalEventURL =  baseURL + "medicalEvent-" + medicalEvent.getHospitalNode() + "-" + medicalEvent.getID();
 		output.write(getTripleURIValue(medicalEventURL, RDF.type.getURI(), SemEHR.MEDICAL_EVENT.getURI()));
 		MedicalEventType medicalEventType = medicalEvent.getMedicalEventType();
-		String medicalEventTypeURL = SemEHR.NS + "medicalEventType-"+medicalEventType.getID() +"-"+ medicalEventType.getName().replaceAll	("\\s", "");
+		String medicalEventTypeURL = SemEHR.NS + "medicalEventType-"+ medicalEventType.getName().replaceAll	("\\s", "");
 		output.write(getTripleURIValue(medicalEventURL, RDF.type.getURI(), medicalEventTypeURL));
 		if (medicalEvent.getEventDate() !=null){
 			output.write(
@@ -149,7 +150,7 @@ public class RDFExporter {
 	public String clinicalVariable2RDF(ClinicalVariable clinicalVariable, Writer output) throws IOException{
 		String clinicalVariableURL =  baseURL + "clinicalVariable-" + clinicalVariable.getHospitalNode() + "-" + clinicalVariable.getID();
 		output.write(getTripleURIValue(clinicalVariableURL, RDF.type.getURI(), SemEHR.CLINICAL_VARIABLE.getURI()));
-		String clinicalVariableTypeURL = buildClinicalVariableTypeURI(String.valueOf(clinicalVariable.getClinicalVariableTypeID()), clinicalVariable.getTypeName());
+		String clinicalVariableTypeURL = buildClinicalVariableTypeURI(clinicalVariable.getTypeName());
 		output.write(getTripleURIValue(clinicalVariableURL, RDF.type.getURI(), clinicalVariableTypeURL));
 		
 		clinicalVariable.getClinicalVariableTypeID();
@@ -235,12 +236,16 @@ public class RDFExporter {
 		return baseURL + "clinicalVariable-" + clinicalVariable.getHospitalNode() + "-" + clinicalVariable.getID();
 	}
 
-	public String buildClinicalVariableTypeURI(String cvtID, String cvtName){
-		return SemEHR.NS + "ClinicalVariableType-"+cvtID +"-"+ cvtName.replaceAll("\\s", "");
+	public String buildClinicalVariableTypeURI(String cvtName){
+		return SemEHR.NS + "ClinicalVariableType-"+ StringUtils.normalize(cvtName).replaceAll("\\s", "");
 	}
 
 	public String buildClinicalVariableTypeURI(ClinicalVariableType clinicalVariableType) {
-		return buildClinicalVariableTypeURI(String.valueOf(clinicalVariableType.getID()), clinicalVariableType.getName());
+		return buildClinicalVariableTypeURI(clinicalVariableType.getName());
+	}
+	
+	public String normalizeString(String s){
+		return s;
 	}
 		
 }

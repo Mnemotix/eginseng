@@ -178,7 +178,6 @@ public class ApiManager {
 			e.printStackTrace();
 		} 
 	}
-
 	
 	public static Address getAddress(FedEHRConnection fedEHRConnection, Patient patient) throws ServerError{
 		QLimitedPatient qLimitedPatient = new QLimitedPatient();
@@ -192,7 +191,7 @@ public class ApiManager {
 		QLimitObject qLimitObject = new QLimitObject();
 		QLimitObjectByNode qLimitObjectByNode = new QLimitObjectByNode();
 		qLimitObjectByNode.setNode(patient.getHospitalNode());  //pour tous les noeuds
-		qLimitObject.getLimitObjectByNode().add(qLimitObjectByNode); //on peut spécifier plusieurs une limit par noeud
+		qLimitObject.getLimitObjectByNode().add(qLimitObjectByNode); //on peut spécifier une limit par noeud
 		qLimitedPatient.setLimits(qLimitObject);
 		Patients patients = fedEHRConnection.fedEHRPortType.listPatients(qLimitedPatient);
 		if(patients.getPatient().size() > 0){
@@ -201,7 +200,6 @@ public class ApiManager {
 		}
 		return null;
 	}
-	
 
 	public static QLimitedPatient getQLimitedPatient(FedEHRConnection fedConnection, int limit, boolean fillMediacalBag) throws ServerError{
 		return getQLimitedPatient(fedConnection, limit, 0, false, fillMediacalBag);
@@ -217,7 +215,7 @@ public class ApiManager {
 		QLimitObject qLimitObject = new QLimitObject();
 		qLimitObject.setCountRequested(countRequested);
 		QLimitObjectByNode qLimitObjectByNode = new QLimitObjectByNode();
-		qLimitObjectByNode.setNode(fedConnection.fedEHRPortType.getLocalHospitalNodeName(""));  //pour tous les noeuds
+		qLimitObjectByNode.setNode(fedConnection.fedEHRPortType.getLocalHospitalNodeName("")); 
 		qLimitObjectByNode.setLimit(limit); 
 		qLimitObjectByNode.setOffset(offset); 
 		qLimitObject.getLimitObjectByNode().add(qLimitObjectByNode); //on peut spécifier plusieurs une limit par noeud
