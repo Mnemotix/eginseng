@@ -42,7 +42,7 @@ import fr.maatg.pandora.ns.idal.ServerError;
 
 public class AkkaCrawler {
 
-	public static final int MAX_FEDEHR_LINE = 1000;
+	public static final int MAX_FEDEHR_LINE = 10000;
 	
 	/**
 	 * @param args
@@ -103,6 +103,7 @@ public class AkkaCrawler {
 		private int remaining;
 		Map<ClinicalVariableType, String> handledClinicalVariableTypes = new HashMap<ClinicalVariableType, String>();
 		private final ActorRef workerRouter;
+		String hospitalNode = null;
 		
 		public Master(int nbOfWorkers){
 			remaining = nbOfWorkers;
@@ -111,28 +112,14 @@ public class AkkaCrawler {
 		
 		@Override
 		public void onReceive(Object message) throws Exception {
-			/*if (message instanceof Go) {
-				Go go = (Go) message;
-				for (int i = 0; i < go.getNbchuncks(); i++) {
-					int offset = i * go.getLimit();
-					FedEHRConnection fedConnection = go.getFedConnection();
-					QLimitedPatient  qLimitedPatient = ApiManager.getQLimitedPatient(go.getFedConnection(), 1000, offset, true, true);
-					Patients patients = fedConnection.fedEHRPortType.listPatients(qLimitedPatient);
-					System.out.println("offset: "+offset+ " go.getLimit(): "+go.getLimit());
-					System.out.println("patients.getPatient().size(): "+patients.getPatient().size());
-					String hospitalNode = fedConnection.fedEHRPortType.getLocalHospitalNodeName("");
-					Writer writer = new FileWriter("src/main/resources/"+hospitalNode+"_"+offset+".ttl");
-					workerRouter.tell(new WorkPatients(fedConnection, patients, writer), getSelf());
-				}
-			}*/
 			if (message instanceof Go) {
 				Go go = (Go) message;
+				FedEHRConnection fedConnection = go.getFedConnection();
+				hospitalNode = fedConnection.fedEHRPortType.getLocalHospitalNodeName("");
 				for (int i = 0; i < go.getNbchuncks(); i++) {
 					int offset = i * go.getLimit();
 					int limit = (go.getLimit() < MAX_FEDEHR_LINE)? go.getLimit() : MAX_FEDEHR_LINE;
-					FedEHRConnection fedConnection = go.getFedConnection();
-					QLimitedPatient  qLimitedPatient = ApiManager.getQLimitedPatient(go.getFedConnection(), limit, offset, true, true);
-					String hospitalNode = fedConnection.fedEHRPortType.getLocalHospitalNodeName("");
+					QLimitedPatient  qLimitedPatient = ApiManager.getQLimitedPatient(fedConnection, hospitalNode, limit, offset, true, true);
 					Writer writer = new FileWriter("src/main/resources/"+hospitalNode+"_"+offset+".ttl");
 					workerRouter.tell(new WorkQLimitedPatient(fedConnection, qLimitedPatient, writer, go.getLimit(), offset), getSelf());
 				}
@@ -147,9 +134,7 @@ public class AkkaCrawler {
 			}
 			else if (message instanceof Done) {
 				if (--this.remaining == 0) {
-					WorkQLimitedPatient workPatients = (WorkQLimitedPatient) ((Done) message).getMessage();
-					String hospitalNodeName = workPatients.getFedConnection().fedEHRPortType.getLocalHospitalNodeName("");
-					Writer cvtWriter = new FileWriter("src/main/resources/cvt"+hospitalNodeName+".ttl");
+					Writer cvtWriter = new FileWriter("src/main/resources/cvt"+hospitalNode+".ttl");
 					RDFExporter rdfExporter = new RDFExporter();
 					for(ClinicalVariableType clinicalVariableType : handledClinicalVariableTypes.keySet()){
 						String cvtURI = rdfExporter.buildClinicalVariableTypeURI(clinicalVariableType);
@@ -197,7 +182,7 @@ public class AkkaCrawler {
 				WorkQLimitedPatient workQLimitedPatient = (WorkQLimitedPatient) message;
 				int offset = workQLimitedPatient.getOffset();
 				int limit = (workQLimitedPatient.getLimit() < MAX_FEDEHR_LINE)? workQLimitedPatient.getLimit() : MAX_FEDEHR_LINE;
-				QLimitedPatient  qLimitedPatient = ApiManager.getQLimitedPatient(workQLimitedPatient.getFedConnection(), limit, offset, true, true);
+				QLimitedPatient  qLimitedPatient = workQLimitedPatient.getQLimitedPatient();// ApiManager.getQLimitedPatient(workQLimitedPatient.getFedConnection(), limit, offset, true, true);
 				Patients patients;
 				do{
 					System.out.println("worker"+workQLimitedPatient.getOffset() + " offset: "+offset+" limit: "+limit);

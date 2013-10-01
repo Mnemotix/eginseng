@@ -12,7 +12,9 @@ public class Query {
 	@Required
 	public String query;
 
-	public String format = SPARQLResultFormat.JSON.toString();;
+	public String format = SPARQLResultFormat.JSON.toString();
+	
+	public String chart;
 
 	private QueryManager queryManager;
 
@@ -27,6 +29,12 @@ public class Query {
 	public Query(String query, String format){
 		this.query = query;
 		this.format = format;
+	}
+	
+	public Query(String query, String format, String chart){
+		this.query = query;
+		this.format = format;
+		this.chart = chart;
 	}
 	
 	public String run(){
@@ -70,6 +78,14 @@ public class Query {
 
 	public void setFormat(String format) {
 		this.format = format;
+	}
+
+	public String getChart() {
+		return chart;
+	}
+
+	public void setChart(String chart) {
+		this.chart = chart;
 	}
 	
 }

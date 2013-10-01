@@ -37,6 +37,11 @@ public class Application extends Controller {
     	Form<Query> filledForm = queryForm.bindFromRequest(); 
     	if(!filledForm.hasErrors()){
     		Query query = filledForm.get();
+    		if(query.chart != null){
+    	    	return ok(
+    	    			views.html.index.render(
+    	    					new Query(query.query, query.format, query.chart)));
+    		}
     		query.setQueryManager(queryManager);
     		response().setContentType("application/json, text/json, text/plain; charset=utf-8"); //adapter en fonction du format
     		return ok(query.run());
@@ -44,10 +49,11 @@ public class Application extends Controller {
     	return ok(
     			views.html.index.render(
     					new Query(
-    							"select ?type (count(*) as ?c) \n" +
-    							"where {?x a ?type} \n" +
-    							"group by ?type \n" +
-    							"order by desc(?c)" )));
+    							"select ?type (count(*) as ?c) \n " +
+    							"where {?x a ?type} \n " +
+    							"group by ?type \n " +
+    							"order by desc(?c)", "json", "gTable" )));
     }
+    
   
 }

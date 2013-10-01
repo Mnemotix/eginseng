@@ -36,7 +36,7 @@ public class ApiManager {
 		int count = 0;
 
 		try {
-			QLimitedPatient qLimitedPatient = ApiManager.getQLimitedPatient(fedConnection, 1, 0, true, true);
+			QLimitedPatient qLimitedPatient = ApiManager.getQLimitedPatient(fedConnection, null, 1, 0, true, true);
 			//fedConnection.fedEHRPortType.listPatients(qLimitedPatient);
 
 			Patients patients = fedConnection.fedEHRPortType.listPatients(qLimitedPatient);
@@ -59,7 +59,7 @@ public class ApiManager {
 			stopWatch.start();
 			RDFExporter rdfExporter = new RDFExporter();
 			
-			QLimitedPatient  qLimitedPatient = ApiManager.getQLimitedPatient(fedConnection, pageSize, offset, true, true);
+			QLimitedPatient  qLimitedPatient = ApiManager.getQLimitedPatient(fedConnection, null, pageSize, offset, true, true);
 
 			Patients patients = fedConnection.fedEHRPortType.listPatients(qLimitedPatient);
 			List<Patient> patientList = patients.getPatient();
@@ -133,7 +133,7 @@ public class ApiManager {
 			stopWatch.start();
 			RDFExporter rdfExporter = new RDFExporter();
 			
-			QLimitedPatient  qLimitedPatient = ApiManager.getQLimitedPatient(fedConnection, pageSize, true);
+			QLimitedPatient  qLimitedPatient = ApiManager.getQLimitedPatient(fedConnection, null, pageSize, true);
 			Patients patients;
 			do{
 				patients = fedConnection.fedEHRPortType.listPatients(qLimitedPatient);
@@ -201,14 +201,18 @@ public class ApiManager {
 		return null;
 	}
 
-	public static QLimitedPatient getQLimitedPatient(FedEHRConnection fedConnection, int limit, boolean fillMediacalBag) throws ServerError{
-		return getQLimitedPatient(fedConnection, limit, 0, false, fillMediacalBag);
+	public static QLimitedPatient getQLimitedPatient(FedEHRConnection fedConnection, String hospitalNode, int limit, boolean fillMediacalBag) throws ServerError{
+		return getQLimitedPatient(fedConnection, hospitalNode, limit, 0, false, fillMediacalBag);
 	}
 	
-	public static QLimitedPatient getQLimitedPatient(FedEHRConnection fedConnection, int limit, int offset, boolean fillMedicalBags, boolean countRequested) throws ServerError{
+	public static QLimitedPatient getQLimitedPatient(FedEHRConnection fedConnection, String hospitalNode, int limit, int offset, boolean fillMedicalBags, boolean countRequested) throws ServerError{
 		QLimitedPatient qLimitedPatient = new QLimitedPatient(); 
 		QPatient qPatient = new QPatient();
-		qPatient.setHospitalNode(fedConnection.fedEHRPortType.getLocalHospitalNodeName(""));
+		if(hospitalNode != null){
+			qPatient.setHospitalNode(hospitalNode);
+		}else {
+			qPatient.setHospitalNode(fedConnection.fedEHRPortType.getLocalHospitalNodeName(""));
+		}
 		QMedicalBag qMedicalBag = getQMedicalBag(fedConnection, fillMedicalBags);
 		qPatient.setQMedicalBag(qMedicalBag);
 		qLimitedPatient.setQPatient(qPatient);
