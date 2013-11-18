@@ -1,0 +1,12 @@
+@import helper._
+
+@main("LOAD") {
+    @form(routes.ImporterFedEHR.crawlNode()){    
+    	Configuration File Path:
+        <br/>
+        <input type="text" name="confFilePath" size="80" value="resources/fedEHR.properties"/>
+        <br/>
+        
+        <input type="submit" value="Load"/>
+   }    
+}
