@@ -19,7 +19,7 @@ public class ImporterFedEHR extends Controller {
     	Form<FedEHRConf> filledConfForm = fedEHRConfForm.bindFromRequest(); 
     	if(!filledConfForm.hasErrors()){
     		FedEHRConf fedEHRConf = filledConfForm.get();
-    		AkkaCrawler.run(nbOfWorkers, fedEHRConf.getConfFilePath());
+    		AkkaCrawler.run(fedEHRConf.getNbWorkers(), fedEHRConf.getConfFilePath());
         	return ok("done");
     	}
     	return ok(views.html.fedehr.crawl.render());

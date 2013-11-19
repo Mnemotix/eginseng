@@ -2,10 +2,16 @@
 
 @main("LOAD") {
     @form(routes.ImporterFedEHR.crawlNode()){    
+        <div>  
     	Configuration File Path:
         <br/>
         <input type="text" name="confFilePath" size="80" value="resources/fedEHR.properties"/>
+        </div>
+        <div>  
+    	Configuration File Path:
         <br/>
+         <input type="number" name="nbWorkers" min="1" max="10" value="8">
+        </div>
         
         <input type="submit" value="Load"/>
    }    
