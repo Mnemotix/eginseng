@@ -1,7 +1,6 @@
 package models;
 
 import com.mnemotix.mnemokit.exception.MnxException;
-import com.mnemotix.mnemokit.semweb.CoreseManager;
 import com.mnemotix.mnemokit.semweb.SPARQLResultFormat;
 import com.mnemotix.mnemokit.semweb.api.QueryManager;
 

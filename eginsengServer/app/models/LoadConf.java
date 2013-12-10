@@ -2,18 +2,18 @@ package models;
 
 import play.data.validation.Constraints.Required;
 
-public class Load {
+public class LoadConf {
 
 	@Required
 	public String rdfSourcePath;
 	@Required
 	public String graph;
 
-	public Load(){
+	public LoadConf(){
 		
 	}
 	
-	public Load(String rdfSourcePath, String graph){
+	public LoadConf(String rdfSourcePath, String graph){
 		this.rdfSourcePath = rdfSourcePath;
 		this.graph = graph;
 	}

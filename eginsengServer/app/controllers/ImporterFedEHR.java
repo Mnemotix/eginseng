@@ -1,13 +1,10 @@
 package controllers;
 
 import com.mnemotix.ginseng.fedEHR.crawl.AkkaCrawler;
-import com.mnemotix.mnemokit.semweb.CoreseManager;
 import play.data.Form;
 import play.mvc.*;
 
 import models.FedEHRConf;
-import models.Query;
-import models.Load;
 
 public class ImporterFedEHR extends Controller {
   
