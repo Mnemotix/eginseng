@@ -11,6 +11,14 @@ POST    /sparql                     controllers.Sparql.sparqlQuery()
 # Loader
 GET	     /load                     controllers.Sparql.load()
 POST     /load                     controllers.Sparql.load()
+# DQP
+GET	     /reset           	   		controllers.Sparql.reset()
+POST     /reset              	  	controllers.Sparql.reset()
+GET	     /addDataSource           	controllers.Sparql.addDataSource(endpoints:String)
+POST     /addDataSource           	controllers.Sparql.addDataSource(endpoints:String)
+
+
+
 
 # FedEHR
 GET	     /fedehr/crawlnode         controllers.ImporterFedEHR.crawlNode()

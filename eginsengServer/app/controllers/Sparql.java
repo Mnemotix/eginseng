@@ -1,10 +1,19 @@
 package controllers;
 
-import com.mnemotix.semweb.Format;
+import java.net.MalformedURLException;
+import java.net.URL;
+
+import org.apache.log4j.Logger;
+
+import com.mnemotix.mnemokit.semweb.Format;
 
 import fr.inria.acacia.corese.exceptions.EngineException;
+import fr.inria.edelweiss.kgdqp.core.QueryProcessDQP;
+import fr.inria.edelweiss.kgdqp.core.WSImplem;
+import fr.inria.edelweiss.kgram.api.query.Provider;
 import fr.inria.edelweiss.kgram.core.Mappings;
 import fr.inria.edelweiss.kgraph.core.Graph;
+import fr.inria.edelweiss.kgraph.query.ProviderImpl;
 import fr.inria.edelweiss.kgraph.query.QueryProcess;
 import fr.inria.edelweiss.kgtool.load.Load;
 import fr.inria.edelweiss.kgtool.print.CSVFormat;
@@ -19,19 +28,22 @@ import models.LoadConf;
 
 public class Sparql extends Controller {
   
-	static final boolean RDFSEntailment = true;
+	static final boolean RDFS_ENTAILMENT = true;
 	
 	static Form<Query> queryForm = Form.form(Query.class);
 	static Form<LoadConf> loadForm = Form.form(LoadConf.class);
+	static Graph graph = Graph.create(RDFS_ENTAILMENT);	
+	
 
-	static Graph graph = Graph.create(RDFSEntailment);	
+    private Logger logger = Logger.getLogger(Sparql.class);
+    private static Provider sProv = ProviderImpl.create();
+    private static QueryProcessDQP execDQP = QueryProcessDQP.create(graph, sProv, true);
 	
     public static Result index() {
         return TODO;
     }
     
     public static Result load(){
-
     	Form<LoadConf> filledLoad = loadForm.bindFromRequest(); 
     	if(!filledLoad.hasErrors()){
 	    	LoadConf load = filledLoad.get();
@@ -66,6 +78,36 @@ public class Sparql extends Controller {
     							"group by ?type \n " +
     							"order by desc(?c)", "json", "gTable" )));
     }
+
+	
+	 public static Result reset() {
+       try {
+           graph = Graph.create(RDFS_ENTAILMENT);
+           sProv = ProviderImpl.create();
+           execDQP = QueryProcessDQP.create(graph, sProv, true);
+           return ok("Reinitialized KGRAM-DQP federation engine");
+       } catch (Exception ex) {
+           ex.printStackTrace();
+           return internalServerError("Exception while reseting KGRAM-DQP");
+       }
+	 }
+	 
+	 public static Result addDataSource(String endpoints) {
+        if ((endpoints == null) || (endpoints.isEmpty())) {
+            return ok("Empty list of data sources !");
+        }
+
+        String output = "";
+        try {
+            execDQP.addRemote(new URL(endpoints), WSImplem.REST);
+            output += endpoints;
+            output += " added to the federation engine";
+            return ok(output);
+        } catch (MalformedURLException ex) {
+            ex.printStackTrace();
+            return internalServerError("URL exception while configuring KGRAM-DQP");
+        }
+	 }
     
 	
 	public static void loadDataSet(String rdfSourcePath, String graphURI){
@@ -98,5 +140,11 @@ public class Sparql extends Controller {
 		}
 		return result;
 	}
-
+	
+	
+	
+	
+	
+	
+	
 }
