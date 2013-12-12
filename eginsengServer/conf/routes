@@ -16,6 +16,8 @@ GET	     /reset           	   		controllers.Sparql.reset()
 POST     /reset              	  	controllers.Sparql.reset()
 GET	     /addDataSource           	controllers.Sparql.addDataSource(endpoints:String)
 POST     /addDataSource           	controllers.Sparql.addDataSource(endpoints:String)
+GET	     /setMode		           	controllers.Sparql.setDQPMode(dQPMode:Boolean)
+POST     /setMode		           	controllers.Sparql.setDQPMode(dQPMode:Boolean)
 
 
 

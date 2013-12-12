@@ -27,10 +27,8 @@ object ApplicationBuild extends Build {
    resolvers += "maatG France Snapshots" at "http://nexus.maatg.fr/content/repositories/maatg-fr-snapshots",
    resolvers += "Mnemotix Nexus (snapshots)" at "http://dev.mnemotix.com:8080/nexus/content/repositories/snapshots/",
 	resolvers += "Mnemotix Nexus (releases)" at "http://dev.mnemotix.com:8080/nexus/content/repositories/releases/",
-	resolvers += "Mnemotix Nexus (3rd party)" at "http://dev.mnemotix.com:8080/nexus/content/repositories/thirdparty/",
-	resolvers += "Local Maven Repository" at "file://" + Path.userHome.absolutePath + "/.m2/repository"
-      		
- 
+	resolvers += "Mnemotix Nexus (3rd party)" at "http://dev.mnemotix.com:8080/nexus/content/repositories/thirdparty/"
+	//resolvers += "Local Maven Repository" at "file://" + Path.userHome.absolutePath + "/.m2/repository"
   
   )
 

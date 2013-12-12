@@ -28,20 +28,32 @@ import models.LoadConf;
 
 public class Sparql extends Controller {
   
-	static final boolean RDFS_ENTAILMENT = true;
+	static boolean DQPMode = false;
+
+	static final boolean RDFS_ENTAILMENT = false;
 	
 	static Form<Query> queryForm = Form.form(Query.class);
 	static Form<LoadConf> loadForm = Form.form(LoadConf.class);
 	static Graph graph = Graph.create(RDFS_ENTAILMENT);	
-	
 
-    private Logger logger = Logger.getLogger(Sparql.class);
+	static Graph graphDQP = Graph.create(RDFS_ENTAILMENT);	
+
+   // private static Logger logger = Logger.getLogger(Sparql.class);
     private static Provider sProv = ProviderImpl.create();
-    private static QueryProcessDQP execDQP = QueryProcessDQP.create(graph, sProv, true);
+    private static QueryProcessDQP execDQP = QueryProcessDQP.create(graphDQP, sProv, true);
 	
     public static Result index() {
         return TODO;
     }
+	
+	public static boolean isDQPMode() {
+		return DQPMode;
+	}
+
+	public static Result setDQPMode(boolean dQPMode) {
+		DQPMode = dQPMode;
+		return ok("dQPMode="+dQPMode);
+	}
     
     public static Result load(){
     	Form<LoadConf> filledLoad = loadForm.bindFromRequest(); 
@@ -65,7 +77,7 @@ public class Sparql extends Controller {
     		//response().setContentType("application/json, text/json, text/plain; charset=utf-8"); 
 			//adapter en fonction du format
     		try {
-				return ok(query(query, graph));
+				return ok(query(query));
 			} catch (EngineException e) {
 				return internalServerError(e.getMessage());
 			}
@@ -119,10 +131,18 @@ public class Sparql extends Controller {
 		}
 	}
 	
-	public static String query(Query query, Graph graph) throws EngineException {
+	public static String query(Query query) throws EngineException {
 		String result = null;
-		QueryProcess exec = QueryProcess.create(graph);
-		Mappings map = exec.query(query.getQuery());
+		Mappings map = null;
+		System.out.println("isDQPMode(): "+isDQPMode());
+		System.out.println("query.getQuery(): "+query.getQuery());
+		if(isDQPMode()){
+			map = execDQP.query(query.getQuery());
+		}else{ 
+			QueryProcess exec = QueryProcess.create(graph);
+			map = exec.query(query.getQuery());
+		}
+		System.out.println(map);
 		Object formattedResult = null;
 		Format format = Format.valueOf(query.getFormat().toUpperCase());
 		if(format == Format.JSON)
@@ -140,11 +160,5 @@ public class Sparql extends Controller {
 		}
 		return result;
 	}
-	
-	
-	
-	
-	
-	
 	
 }
