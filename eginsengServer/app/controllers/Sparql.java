@@ -3,6 +3,7 @@ package controllers;
 import java.net.MalformedURLException;
 import java.net.URL;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 
 import com.mnemotix.mnemokit.semweb.Format;
@@ -19,7 +20,11 @@ import fr.inria.edelweiss.kgtool.load.Load;
 import fr.inria.edelweiss.kgtool.print.CSVFormat;
 import fr.inria.edelweiss.kgtool.print.JSONFormat;
 import fr.inria.edelweiss.kgtool.print.RDFFormat;
+import fr.inria.edelweiss.kgtool.print.ResultFormat;
+import fr.inria.edelweiss.kgtool.print.TripleFormat;
 import fr.inria.edelweiss.kgtool.print.XMLFormat;
+import play.api.http.ContentTypes;
+import play.api.http.MediaRange;
 import play.data.Form;
 import play.mvc.*;
 
@@ -66,9 +71,24 @@ public class Sparql extends Controller {
     }
     
     public static Result sparqlQuery(){
+    	System.out.println("QUERY");
     	Form<Query> filledForm = queryForm.bindFromRequest(); 
     	if(!filledForm.hasErrors()){
     		Query query = filledForm.get();
+    		if(StringUtils.isBlank(query.format)){
+    			System.out.println(request().getHeader("Accept"));
+    			if(request().accepts("application/sparql-results+json")){
+        			System.out.println("ACCEPT JSON");
+    				query.setFormat(Format.JSON.toString());
+    			} else if(request().accepts("application/sparql-results+xml")){
+        			query.setFormat(Format.XML.toString());
+    			} else if(request().accepts("text/turtle")){
+    				query.setFormat(Format.N3.toString());
+    			} else if(request().accepts("text/csv")){
+    				query.setFormat(Format.CSV.toString());
+    			}
+    			
+    		}
     		if(query.chart != null){
     	    	return ok(
     	    			views.html.sparql.index.render(
@@ -77,7 +97,9 @@ public class Sparql extends Controller {
     		//response().setContentType("application/json, text/json, text/plain; charset=utf-8"); 
 			//adapter en fonction du format
     		try {
+    			response().setHeader("Access-Control-Allow-Origin", "*");     
 				return ok(query(query));
+				//.as("application/sparql-results+json")
 			} catch (EngineException e) {
 				return internalServerError(e.getMessage());
 			}
@@ -95,8 +117,10 @@ public class Sparql extends Controller {
 	 public static Result reset() {
        try {
            graph = Graph.create(RDFS_ENTAILMENT);
+           graphDQP = Graph.create(RDFS_ENTAILMENT);	
            sProv = ProviderImpl.create();
-           execDQP = QueryProcessDQP.create(graph, sProv, true);
+           execDQP = QueryProcessDQP.create(graphDQP, sProv, true);
+           System.out.println("Reinitialized KGRAM-DQP federation engine");
            return ok("Reinitialized KGRAM-DQP federation engine");
        } catch (Exception ex) {
            ex.printStackTrace();
@@ -106,6 +130,7 @@ public class Sparql extends Controller {
 	 
 	 public static Result addDataSource(String endpoints) {
         if ((endpoints == null) || (endpoints.isEmpty())) {
+            System.out.println("Empty list of data sources !");
             return ok("Empty list of data sources !");
         }
 
@@ -114,6 +139,7 @@ public class Sparql extends Controller {
             execDQP.addRemote(new URL(endpoints), WSImplem.REST);
             output += endpoints;
             output += " added to the federation engine";
+            System.out.println(output);
             return ok(output);
         } catch (MalformedURLException ex) {
             ex.printStackTrace();
@@ -137,6 +163,7 @@ public class Sparql extends Controller {
 		System.out.println("isDQPMode(): "+isDQPMode());
 		System.out.println("query.getQuery(): "+query.getQuery());
 		if(isDQPMode()){
+			execDQP.setDebug(true);
 			map = execDQP.query(query.getQuery());
 		}else{ 
 			QueryProcess exec = QueryProcess.create(graph);
@@ -144,20 +171,20 @@ public class Sparql extends Controller {
 		}
 		System.out.println(map);
 		Object formattedResult = null;
-		Format format = Format.valueOf(query.getFormat().toUpperCase());
-		if(format == Format.JSON)
-			formattedResult = JSONFormat.create(map);
-		if(format == Format.CSV)
-			formattedResult = CSVFormat.create(map);
-		if(format == Format.XML)
-			formattedResult = XMLFormat.create(map);
-		if(format == Format.RDF_XML)
-			formattedResult = RDFFormat.create(map);
-		if(formattedResult != null){
-			result = formattedResult.toString();
-		}else { 
-			formattedResult = JSONFormat.create(map);
+		try{
+			Format format = Format.valueOf(query.getFormat().toUpperCase());
+			if(format == Format.JSON)
+				formattedResult = JSONFormat.create(map);
+			if(format == Format.CSV)
+				formattedResult = CSVFormat.create(map);
+			if(format == Format.XML)
+				formattedResult = XMLFormat.create(map);
+			if(format == Format.N3)
+				formattedResult = TripleFormat.create(map);			
+		}catch(Exception e){
+			formattedResult = ResultFormat.create(map);
 		}
+		result = formattedResult.toString();
 		return result;
 	}
 	

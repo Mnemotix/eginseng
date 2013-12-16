@@ -53,20 +53,17 @@ public class ApplicationTest {
 
 		try {
 
-		tmpexecDQP.addRemote(new URL("http://fr.dbpedia.org/sparql"), WSImplem.REST);
+		tmpexecDQP.addRemote(new URL("http://localhost:9000/sparql"), WSImplem.REST);
 
 		} catch (MalformedURLException e) {
-
-		// TODO Auto-generated catch block
-
-		e.printStackTrace();
-
+			System.out.println("MalformedURLException");
+			e.printStackTrace();
 		}
 
 		try {
-			System.out.println(tmpexecDQP.query("select * where {<http://fr.dbpedia.org/resource/Paris> ?p ?type} limit 10"));
+			System.out.println(tmpexecDQP.query("select * where {?x ?p ?type} limit 10"));
 		} catch (EngineException e) {
-			// TODO Auto-generated catch block
+			System.out.println("EngineException");
 			e.printStackTrace();
 		}
     }

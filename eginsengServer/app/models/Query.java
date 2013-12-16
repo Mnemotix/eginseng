@@ -9,8 +9,10 @@ public class Query {
 	@Required
 	public String query;
 
-	public String format = Format.JSON.toString();
+	public String format;
 	
+	public String output;
+
 	public String chart;
 
 	public Query(){
@@ -28,7 +30,7 @@ public class Query {
 	
 	public Query(String query, String format, String chart){
 		this.query = query;
-		this.format = format;
+		this.format = Format.JSON.toString();
 		this.chart = chart;
 	}
 
@@ -47,6 +49,16 @@ public class Query {
 
 	public void setFormat(String format) {
 		this.format = format;
+		this.output = format;
+	}
+	
+	public String getOutput() {
+		return output;
+	}
+
+	public void setOutput(String output) {
+		this.format = output;
+		this.output = output;
 	}
 
 	public String getChart() {
