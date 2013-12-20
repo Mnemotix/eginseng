@@ -2,9 +2,10 @@ package controllers;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.Logger;
 
 import com.mnemotix.mnemokit.semweb.Format;
 
@@ -19,12 +20,9 @@ import fr.inria.edelweiss.kgraph.query.QueryProcess;
 import fr.inria.edelweiss.kgtool.load.Load;
 import fr.inria.edelweiss.kgtool.print.CSVFormat;
 import fr.inria.edelweiss.kgtool.print.JSONFormat;
-import fr.inria.edelweiss.kgtool.print.RDFFormat;
 import fr.inria.edelweiss.kgtool.print.ResultFormat;
 import fr.inria.edelweiss.kgtool.print.TripleFormat;
 import fr.inria.edelweiss.kgtool.print.XMLFormat;
-import play.api.http.ContentTypes;
-import play.api.http.MediaRange;
 import play.data.Form;
 import play.mvc.*;
 
@@ -42,22 +40,24 @@ public class Sparql extends Controller {
 	static Graph graph = Graph.create(RDFS_ENTAILMENT);	
 
 	static Graph graphDQP = Graph.create(RDFS_ENTAILMENT);	
-
-   // private static Logger logger = Logger.getLogger(Sparql.class);
-    private static Provider sProv = ProviderImpl.create();
-    private static QueryProcessDQP execDQP = QueryProcessDQP.create(graphDQP, sProv, true);
+	public static Map<String, URL> dqpEndpoints = new HashMap<String, URL>();
 	
     public static Result index() {
         return TODO;
     }
-	
+
+	public static Result status() {
+		String jsonStatus = "{ \"dqpMode\":"+DQPMode + ", \"datasources\":" +dqpEndpoints.values()+"}";
+		return ok(jsonStatus);
+	}
+    
 	public static boolean isDQPMode() {
 		return DQPMode;
 	}
 
-	public static Result setDQPMode(boolean dQPMode) {
-		DQPMode = dQPMode;
-		return ok("dQPMode="+dQPMode);
+	public static Result setDQPMode(boolean dqpMode) {
+		DQPMode = dqpMode;
+		return status();
 	}
     
     public static Result load(){
@@ -65,7 +65,7 @@ public class Sparql extends Controller {
     	if(!filledLoad.hasErrors()){
 	    	LoadConf load = filledLoad.get();
 	    	loadDataSet(load.getRdfSourcePath(), load.getGraph());
-	    	return ok("done");
+	    	return ok(String.valueOf(true));
     	}
     	return ok(views.html.sparql.load.render());
     }
@@ -78,7 +78,6 @@ public class Sparql extends Controller {
     		if(StringUtils.isBlank(query.format)){
     			System.out.println(request().getHeader("Accept"));
     			if(request().accepts("application/sparql-results+json")){
-        			System.out.println("ACCEPT JSON");
     				query.setFormat(Format.JSON.toString());
     			} else if(request().accepts("application/sparql-results+xml")){
         			query.setFormat(Format.XML.toString());
@@ -107,10 +106,9 @@ public class Sparql extends Controller {
     	return ok(
     			views.html.sparql.index.render(
     					new Query(
-    							"select ?type (count(*) as ?c) \n " +
-    							"where {?x a ?type} \n " +
-    							"group by ?type \n " +
-    							"order by desc(?c)", "json", "gTable" )));
+    							"select * \n" +
+    							"where {?x a ?type} \n" +
+    							"limit 10", "json", "gTable" )));
     }
 
 	
@@ -118,33 +116,37 @@ public class Sparql extends Controller {
        try {
            graph = Graph.create(RDFS_ENTAILMENT);
            graphDQP = Graph.create(RDFS_ENTAILMENT);	
-           sProv = ProviderImpl.create();
-           execDQP = QueryProcessDQP.create(graphDQP, sProv, true);
+           dqpEndpoints.clear();
            System.out.println("Reinitialized KGRAM-DQP federation engine");
-           return ok("Reinitialized KGRAM-DQP federation engine");
+   			return status();
        } catch (Exception ex) {
            ex.printStackTrace();
            return internalServerError("Exception while reseting KGRAM-DQP");
        }
 	 }
 	 
-	 public static Result addDataSource(String endpoints) {
-        if ((endpoints == null) || (endpoints.isEmpty())) {
-            System.out.println("Empty list of data sources !");
-            return ok("Empty list of data sources !");
-        }
-
-        String output = "";
+	 public static Result removeDataSource(String endpoint){
+	    if(dqpEndpoints.containsKey(endpoint)){
+	    	dqpEndpoints.remove(endpoint);
+	    }
+		return status();
+	 }
+	 
+	 public static Result addDataSource(String endpoint) {
         try {
-            execDQP.addRemote(new URL(endpoints), WSImplem.REST);
-            output += endpoints;
-            output += " added to the federation engine";
-            System.out.println(output);
-            return ok(output);
+        	if(!dqpEndpoints.containsKey(endpoint)){
+	        	URL endpointURL = new URL(endpoint);
+		        dqpEndpoints.put(endpoint, endpointURL);
+        	}
+	        System.out.println(endpoint+" added to the federation engine");
         } catch (MalformedURLException ex) {
             ex.printStackTrace();
-            return internalServerError("URL exception while configuring KGRAM-DQP");
         }
+		return status();
+	 }
+	 
+	 public static Result addDataSourceIndex(){
+	    return ok(views.html.sparql.addDataSource.render());
 	 }
     
 	
@@ -163,6 +165,12 @@ public class Sparql extends Controller {
 		System.out.println("isDQPMode(): "+isDQPMode());
 		System.out.println("query.getQuery(): "+query.getQuery());
 		if(isDQPMode()){
+			Provider sProv = ProviderImpl.create();
+			QueryProcessDQP execDQP = QueryProcessDQP.create(graphDQP, sProv, true);
+			for(URL endpoint : dqpEndpoints.values()){
+				System.out.println("addRemote "+endpoint);
+				execDQP.addRemote(endpoint, WSImplem.REST);
+			}
 			execDQP.setDebug(true);
 			map = execDQP.query(query.getQuery());
 		}else{ 
@@ -187,5 +195,7 @@ public class Sparql extends Controller {
 		result = formattedResult.toString();
 		return result;
 	}
+	
+	
 	
 }

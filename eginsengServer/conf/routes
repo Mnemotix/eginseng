@@ -9,22 +9,25 @@ GET     /                           controllers.Sparql.index()
 
 # SPARQL endpoint
 GET     /sparql                     controllers.Sparql.sparqlQuery()
-GET     /sparql/                     controllers.Sparql.sparqlQuery()
+GET     /sparql/                    controllers.Sparql.sparqlQuery()
 POST    /sparql                     controllers.Sparql.sparqlQuery()
-POST    /sparql/                     controllers.Sparql.sparqlQuery()
+POST    /sparql/                    controllers.Sparql.sparqlQuery()
 
 # Loader
-GET	     /load                     controllers.Sparql.load()
-POST     /load                     controllers.Sparql.load()
+GET	     /sparql/load                    	controllers.Sparql.load()
+POST     /sparql/load                     	controllers.Sparql.load()
+
 # DQP
-GET	     /reset           	   		controllers.Sparql.reset()
-POST     /reset              	  	controllers.Sparql.reset()
-GET	     /addDataSource           	controllers.Sparql.addDataSource(endpoints:String)
-POST     /addDataSource           	controllers.Sparql.addDataSource(endpoints:String)
-GET	     /setMode		           	controllers.Sparql.setDQPMode(dQPMode:Boolean)
-POST     /setMode		           	controllers.Sparql.setDQPMode(dQPMode:Boolean)
-
-
+GET	     /sparql/reset           	   		controllers.Sparql.reset()
+POST     /sparql/reset              	  	controllers.Sparql.reset()
+GET	     /sparql/addDataSource           	controllers.Sparql.addDataSource(endpoint:String)
+POST     /sparql/addDataSource           	controllers.Sparql.addDataSource(endpoint:String)
+GET	     /sparql/removeDataSource          	controllers.Sparql.removeDataSource(endpoint:String)
+POST     /sparql/removeDataSource          	controllers.Sparql.removeDataSource(endpoint:String)
+GET	     /sparql/setDQPMode/:dqpMode        controllers.Sparql.setDQPMode(dqpMode:Boolean)
+POST     /sparql/setDQPMode/:dqpMode		controllers.Sparql.setDQPMode(dqpMode:Boolean)
+GET	     /sparql/status		           		controllers.Sparql.status()
+POST     /sparql/status		    	       	controllers.Sparql.status()
 
 
 # FedEHR
