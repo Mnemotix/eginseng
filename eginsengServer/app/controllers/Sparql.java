@@ -71,7 +71,6 @@ public class Sparql extends Controller {
     }
     
     public static Result sparqlQuery(){
-    	System.out.println("QUERY");
     	Form<Query> filledForm = queryForm.bindFromRequest(); 
     	if(!filledForm.hasErrors()){
     		Query query = filledForm.get();
@@ -163,7 +162,6 @@ public class Sparql extends Controller {
 		String result = null;
 		Mappings map = null;
 		System.out.println("isDQPMode(): "+isDQPMode());
-		System.out.println("query.getQuery(): "+query.getQuery());
 		if(isDQPMode()){
 			Provider sProv = ProviderImpl.create();
 			QueryProcessDQP execDQP = QueryProcessDQP.create(graphDQP, sProv, true);
@@ -177,7 +175,7 @@ public class Sparql extends Controller {
 			QueryProcess exec = QueryProcess.create(graph);
 			map = exec.query(query.getQuery());
 		}
-		System.out.println(map);
+		System.out.println("nb mappings:"+map.size());
 		Object formattedResult = null;
 		try{
 			Format format = Format.valueOf(query.getFormat().toUpperCase());

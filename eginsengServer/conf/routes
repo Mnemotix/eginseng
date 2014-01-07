@@ -27,8 +27,6 @@ POST     /sparql/removeDataSource          	controllers.Sparql.removeDataSource(
 GET	     /sparql/setDQPMode/:dqpMode        controllers.Sparql.setDQPMode(dqpMode:Boolean)
 POST     /sparql/setDQPMode/:dqpMode		controllers.Sparql.setDQPMode(dqpMode:Boolean)
 GET	     /sparql/status		           		controllers.Sparql.status()
-POST     /sparql/status		    	       	controllers.Sparql.status()
-
 
 # FedEHR
 GET	     /fedehr/crawlnode         controllers.ImporterFedEHR.crawlNode()
