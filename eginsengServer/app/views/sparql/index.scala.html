@@ -2,91 +2,67 @@
 
 @import helper._
 
+@import org.apache.commons.lang3.StringEscapeUtils.escapeEcmaScript
+
 @main("SPARQL") {
 
-   <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"></script>
-   <script type="text/javascript" src="https://www.google.com/jsapi"></script>
-   <script id="sgvzlr_script" src='@routes.Assets.at("javascripts/sgvizler-0.5/sgvizler.js")' type="text/javascript"></script>
+    <meta charset="UTF-8"/>
+    <script type="text/javascript" src='@routes.Assets.at("javascripts/jquery/jquery-1.10.2.min.js")'></script>
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+   <script id="sgvzlr_script" src='@routes.Assets.at("javascripts/sgvizler-0.6/sgvizler.js")' type="text/javascript"></script>
 
-    
-<div id="queryarea">
-      <pre id="sgvzlr_cPrefix"></pre>
-      <textarea id="sgvzlr_cQuery" rows="10" cols="80">@query.query</textarea>
-      <form method="get" id="sgvzlr_formQuery">
-	<p>
-	  <input type="hidden" value="" name="query" id="sgvzlr_strQuery"/>
-	  Width:  <input name="width" id="sgvzlr_strWidth" type="text" size="3"/>
-	  Height: <input name="height" id="sgvzlr_strHeight" type="text" size="3"/>
-	  Chart Type: <select name="chart" id="sgvzlr_optChart"></select>
-       <input type="button" value="GO!" onclick="sgvizler.ui.submitQuery()"/>
-	</p>
-      </form>
-      <div id="sgvzlr_cMessage"></div>
-    </div>
-    <div id="sgvzlr_gchart" style="width:800px; height:400px;"></div>
+<div id="queryForm"></div>
 
+<script type="text/javascript">
+  $(document).ready(function() { 
+	  sgvizler.defaultEndpointURL("/sparql");
+	  sgvizler.defaultQuery('@escapeEcmaScript(query.query)');
+	  sgvizler.formDraw("queryForm"); });
+  $('#sgvzlr_strEndpointGrp').hide();
+ </script>
 
- <script type="text/javascript">
-      // CONFIGURATION Sgvizler 0.5: Set variables to fit your setup.
-      // NB! Do not let the last item in a list end with a comma.
+    <style type="text/css">
+   
+      pre#sgvzlr_cPrefix {
+        font-size: 90%;
+      }
+      form label {
+        margin-left: 5px;
+      }
+      form input {
+        margin-right: 5px;
+      }
 
-       //// Query settings. The defaults settings are listed.
-       sgvizler.option.query = {
-           // Default query. 
-           'query': $("#sgvzlr_cQuery").val(),
-    
-           // Endpoint URL. 
-           'endpoint':             "/sparql",
-    
-           // Endpoint output format. 
-           'endpoint_output':      'json',  // 'xml', 'json' or 'jsonp'
-    
-           // This string is appended the 'endpoint' variable and the query to it again to give a link to the "raw" query results.
-           'endpoint_query_url':   "?format=csv&amp;query=",
-    
-           // URL to SPARQL validation service. The query is appended to it. 
-           //'validator_query_url':  "http://www.sparql.org/query-validator?languageSyntax=SPARQL&amp;outputFormat=sparql&amp;linenumbers=true&amp;query=",
-    
-           // Default chart type. 
-           'chart':                "@query.chart"
-    
-           // Default log level. Must be either 0, 1, or 2. 
-           //'loglevel': 2
-       };
-
-       //// Prefixes
-       // Add convenient prefixes for your dataset. rdf, rdfs, xsd, owl
-       // are already set.  Examples: 
-       
-		//sgvizler.option.namespace['wd'] = 'http://sws.ifi.uio.no/d2rq/resource/';
-        //sgvizler.option.namespace['w']  = 'http://sws.ifi.uio.no/ont/world.owl#';
-
-       //// Your chart drawing preferences. The defaults are listed.
-       // See the Google visualization API for available options for
-       // Google charts, and the Sgvizler homepage for other
-       // options. Options applicable to all charts are put in the
-       // "root" of sgvizler.chartOptions. Chart specific options are
-       // put in a "child" with the chart's id as name,
-       // e.g. 'gGeoMap'. 
-       sgvizler.option.chart = { 
-           //'width':           '800',
-           //'height':          '400',
-           //'chartArea':       { left: '5%', top: '5%', width: '75%', height: '80%' },
-           //     'gGeoMap': {
-           //	 'dataMode':           'markers'
-           //     },
-           //     'gMap': {
-           //	 'dataMode':           'markers',
-           //     },
-           //     'sMap': {
-           //	 'dataMode':           'markers',
-           //	 'showTip':            true,
-           //	 'useMapTypeControl':  true
-           //     } 
-       };
-
-       //// Leave this as is. Ready, steady, GO!
-    	$(document).ready(sgvizler.go());
-     </script>
-
+      span#sgvzlr_strEndpointGrp
+      {
+        display: none;
+      }
+      span#sgvzlr_btnFormatGrp
+      {
+        display: none;
+      }
+     span#sgvzlr_btnSendGrp, span#sgvzlr_strSizeGrp
+      {
+      	margin-top: 10px;
+      	display: block;
+      }
+      span#sgvzlr_optChartGrp, span#sgvzlr_strSizeGrp
+      {
+      	font-size: 100%;
+      }
+      
+      
+      span#sgvzlr_btnSendGrp input[type="button"]
+      {
+      	font-size: 100%;
+      }
+      
+      /* 
+      span#sgvzlr_optChartGrp,
+      span#sgvzlr_btnSendGrp
+      {
+        display: none;
+      }
+      */
+    </style>
 }

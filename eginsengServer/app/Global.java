@@ -1,11 +1,9 @@
 import java.lang.reflect.Method;
-import java.util.ArrayList;
+import java.text.DateFormat;
 import java.util.Arrays;
+import java.util.Date;
+import java.util.Locale;
 import java.util.Map;
-
-import org.apache.commons.lang3.ArrayUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.lucene.analysis.util.CharArrayMap.EntrySet;
 
 import play.Application;
 import play.GlobalSettings;
@@ -23,6 +21,9 @@ public class Global extends GlobalSettings {
     @SuppressWarnings("rawtypes")
     @Override
     public Action onRequest(Http.Request request, Method actionMethod) {
+    	DateFormat mediumDateFormatEN = 
+    			DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.MEDIUM, new Locale("EN","en"));
+    	System.out.print(mediumDateFormatEN.format(new Date())+": ");
     	System.out.print(request.path());
     	Map<String, String[]> queryString = request.queryString();
     	for(String queryParam : queryString.keySet()){
