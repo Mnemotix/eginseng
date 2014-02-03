@@ -1,71 +1,58 @@
 package controllers;
 
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.HashMap;
-import java.util.Map;
-
 import org.apache.commons.lang3.StringUtils;
 
-import com.mnemotix.mnemokit.semweb.Format;
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.Props;
+import akka.pattern.AskTimeoutException;
 
-import fr.inria.acacia.corese.exceptions.EngineException;
-import fr.inria.edelweiss.kgdqp.core.QueryProcessDQP;
-import fr.inria.edelweiss.kgdqp.core.WSImplem;
-import fr.inria.edelweiss.kgram.api.query.Provider;
-import fr.inria.edelweiss.kgram.core.Mappings;
-import fr.inria.edelweiss.kgraph.core.Graph;
-import fr.inria.edelweiss.kgraph.query.ProviderImpl;
-import fr.inria.edelweiss.kgraph.query.QueryProcess;
-import fr.inria.edelweiss.kgtool.load.Load;
-import fr.inria.edelweiss.kgtool.print.CSVFormat;
-import fr.inria.edelweiss.kgtool.print.JSONFormat;
-import fr.inria.edelweiss.kgtool.print.ResultFormat;
-import fr.inria.edelweiss.kgtool.print.TripleFormat;
-import fr.inria.edelweiss.kgtool.print.XMLFormat;
+import com.mnemotix.mnemokit.semweb.Format;
+import com.mnemotix.semweb.KgramActor;
 import play.data.Form;
+import play.libs.Akka;
+import play.libs.F.Function;
 import play.mvc.*;
+
+import static akka.pattern.Patterns.ask;
 
 import models.Query;
 import models.LoadConf;
 
 public class Sparql extends Controller {
-  
-	static boolean DQPMode = false;
 
-	static final boolean RDFS_ENTAILMENT = false;
-	
+	static boolean rdfsEntailment = false;
+
+	static final ActorSystem system = ActorSystem.create();
+	static ActorRef kgramActor = system.actorOf( new Props(KgramActor.class), "kgramActor");	;
 	static Form<Query> queryForm = Form.form(Query.class);
 	static Form<LoadConf> loadForm = Form.form(LoadConf.class);
-	static Graph graph = Graph.create(RDFS_ENTAILMENT);	
 
-	static Graph graphDQP = Graph.create(RDFS_ENTAILMENT);	
-	public static Map<String, URL> dqpEndpoints = new HashMap<String, URL>();
+	private static long QUERY_TIMEOUT = 120000;
+	private static long LOAD_TIMEOUT = 120000;
+	private static long ADMIN_TIMEOUT = 10000;
 	
     public static Result index() {
-        return TODO;
+    	return TODO;
     }
-
-	public static Result status() {
-		String jsonStatus = "{ \"dqpMode\":"+DQPMode + ", \"datasources\":" +dqpEndpoints.values()+"}";
-		return ok(jsonStatus);
-	}
     
-	public static boolean isDQPMode() {
-		return DQPMode;
+    public static Result stopQuery(String queryId){
+    	return getPromiseKgramActor(new KgramActor.StopQuery(queryId), ADMIN_TIMEOUT);
+    }
+    
+	public static Result status() {
+		return getPromiseKgramActor(new KgramActor.Status(), ADMIN_TIMEOUT);
 	}
 
 	public static Result setDQPMode(boolean dqpMode) {
-		DQPMode = dqpMode;
-		return status();
+		return getPromiseKgramActor(new KgramActor.SetDQPMode(dqpMode), ADMIN_TIMEOUT);
 	}
     
     public static Result load(){
     	Form<LoadConf> filledLoad = loadForm.bindFromRequest(); 
     	if(!filledLoad.hasErrors()){
 	    	LoadConf load = filledLoad.get();
-	    	loadDataSet(load.getRdfSourcePath(), load.getGraph());
-	    	return ok(String.valueOf(true));
+	    	return getPromiseKgramActor(load, LOAD_TIMEOUT);
     	}
     	return ok(views.html.sparql.load.render());
     }
@@ -78,12 +65,16 @@ public class Sparql extends Controller {
     			System.out.println(request().getHeader("Accept"));
     			if(request().accepts("application/sparql-results+json")){
     				query.setFormat(Format.JSON.toString());
+        			//response().setHeader("Content-Type", "application/sparql-results+json"); 
     			} else if(request().accepts("application/sparql-results+xml")){
         			query.setFormat(Format.XML.toString());
+        			response().setHeader("Content-Type", "application/sparql-results+xml");   
     			} else if(request().accepts("text/turtle")){
     				query.setFormat(Format.N3.toString());
+        			response().setHeader("Content-Type", "text/turtle");  
     			} else if(request().accepts("text/csv")){
     				query.setFormat(Format.CSV.toString());
+        			response().setHeader("Content-Type", "text/csv");  
     			}
     			
     		}
@@ -92,15 +83,8 @@ public class Sparql extends Controller {
     	    			views.html.sparql.index.render(
     	    					new Query(query.query, query.format, query.chart)));
     		}
-    		//response().setContentType("application/json, text/json, text/plain; charset=utf-8"); 
-			//adapter en fonction du format
-    		try {
-    			response().setHeader("Access-Control-Allow-Origin", "*");     
-				return ok(query(query));
-				//.as("application/sparql-results+json")
-			} catch (EngineException e) {
-				return internalServerError(e.getMessage());
-			}
+
+			return getPromiseKgramActor(query, QUERY_TIMEOUT );
     	}
     	return ok(
     			views.html.sparql.index.render(
@@ -112,88 +96,40 @@ public class Sparql extends Controller {
 
 	
 	 public static Result reset() {
-       try {
-           graph = Graph.create(RDFS_ENTAILMENT);
-           graphDQP = Graph.create(RDFS_ENTAILMENT);	
-           dqpEndpoints.clear();
-           System.out.println("Reinitialized KGRAM-DQP federation engine");
-   			return status();
-       } catch (Exception ex) {
-           ex.printStackTrace();
-           return internalServerError("Exception while reseting KGRAM-DQP");
-       }
+		 return getPromiseKgramActor(new KgramActor.Reset(), ADMIN_TIMEOUT);
 	 }
 	 
 	 public static Result removeDataSource(String endpoint){
-	    if(dqpEndpoints.containsKey(endpoint)){
-	    	dqpEndpoints.remove(endpoint);
-	    }
-		return status();
+		 return getPromiseKgramActor(new KgramActor.RemoveDataSource(endpoint), ADMIN_TIMEOUT);
 	 }
 	 
 	 public static Result addDataSource(String endpoint) {
-        try {
-        	if(!dqpEndpoints.containsKey(endpoint)){
-	        	URL endpointURL = new URL(endpoint);
-		        dqpEndpoints.put(endpoint, endpointURL);
-        	}
-	        System.out.println(endpoint+" added to the federation engine");
-        } catch (MalformedURLException ex) {
-            ex.printStackTrace();
-        }
-		return status();
+		 return getPromiseKgramActor(new KgramActor.AddDataSource(endpoint), ADMIN_TIMEOUT);
 	 }
 	 
 	 public static Result addDataSourceIndex(){
 	    return ok(views.html.sparql.addDataSource.render());
 	 }
-    
 	
-	public static void loadDataSet(String rdfSourcePath, String graphURI){
-		Load load = Load.create(graph);
-		if(graphURI != null) {
-			load.load(rdfSourcePath, graphURI);	
-		} else {
-			load.load(rdfSourcePath);
-		}
+	public static Result getPromiseKgramActor(Object message, long timeout){
+		return async(Akka.asPromise(ask(kgramActor, message, timeout)).recover(
+			    new Function<Throwable, Object>() {
+					@Override
+					public Object apply(Throwable t) throws Throwable {
+			            if( t instanceof AskTimeoutException ) {
+			                return internalServerError("Timeout");
+			            }
+			            else {
+			                return internalServerError("Got Exception: " + t.getMessage());
+			            }
+					}
+			    }).map(
+    			new Function<Object,Result>() {
+	    		        public Result apply(Object response) {
+	    		          return ok(response.toString());
+	    		        }
+    		    }
+			));
 	}
-	
-	public static String query(Query query) throws EngineException {
-		String result = null;
-		Mappings map = null;
-		System.out.println("isDQPMode(): "+isDQPMode());
-		if(isDQPMode()){
-			Provider sProv = ProviderImpl.create();
-			QueryProcessDQP execDQP = QueryProcessDQP.create(graphDQP, sProv, true);
-			for(URL endpoint : dqpEndpoints.values()){
-				System.out.println("addRemote "+endpoint);
-				execDQP.addRemote(endpoint, WSImplem.REST);
-			}
-			execDQP.setDebug(true);
-			map = execDQP.query(query.getQuery());
-		}else{ 
-			QueryProcess exec = QueryProcess.create(graph);
-			map = exec.query(query.getQuery());
-		}
-		System.out.println("nb mappings:"+map.size());
-		Object formattedResult = null;
-		try{
-			Format format = Format.valueOf(query.getFormat().toUpperCase());
-			if(format == Format.JSON)
-				formattedResult = JSONFormat.create(map);
-			if(format == Format.CSV)
-				formattedResult = CSVFormat.create(map);
-			if(format == Format.XML)
-				formattedResult = XMLFormat.create(map);
-			if(format == Format.N3)
-				formattedResult = TripleFormat.create(map);			
-		}catch(Exception e){
-			formattedResult = ResultFormat.create(map);
-		}
-		result = formattedResult.toString();
-		return result;
-	}
-	
-	
 	
 }

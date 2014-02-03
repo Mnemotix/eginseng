@@ -1,6 +1,7 @@
 package models;
 
 import com.mnemotix.mnemokit.semweb.Format;
+import com.sun.org.apache.xml.internal.security.Init;
 
 import play.data.validation.Constraints.Required;
 
@@ -9,12 +10,16 @@ public class Query {
 	@Required
 	public String query;
 
+	public final long startTime = System.currentTimeMillis();;
+	
 	public String format;
 	
 	public String output;
 
 	public String chart;
-
+	
+	public String result;
+	
 	public Query(){
 	
 	}
@@ -33,7 +38,7 @@ public class Query {
 		this.format = Format.JSON.toString();
 		this.chart = chart;
 	}
-
+	
 	public String getQuery() {
 		return query;
 	}
@@ -42,7 +47,6 @@ public class Query {
 		this.query = query;
 	}
 
-	
 	public String getFormat() {
 		return format;
 	}
@@ -67,6 +71,31 @@ public class Query {
 
 	public void setChart(String chart) {
 		this.chart = chart;
+	}
+
+	public String getResult() {
+		return result;
+	}
+
+	public void setResult(String result) {
+		this.result = result;
+	}
+
+	public long getStartTime() {
+		return startTime;
+	}
+	
+	public String getId() {
+		return "query-"+startTime;
+	}
+	
+	public String toString(){
+		return "{ " +
+				"\"id\": \""+getId()+"\", " +
+				"\"startTime\": \""+startTime+"\", " +
+				"\"format\": \""+format+"\", " +
+				"\"query\": \""+query+"\"" +
+				"}";
 	}
 	
 }

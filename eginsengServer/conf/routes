@@ -7,11 +7,14 @@
 # Home page
 GET     /                           controllers.Sparql.index()
 
+
+
 # SPARQL endpoint
-GET     /sparql                     controllers.Sparql.sparqlQuery()
-GET     /sparql/                    controllers.Sparql.sparqlQuery()
-POST    /sparql                     controllers.Sparql.sparqlQuery()
-POST    /sparql/                    controllers.Sparql.sparqlQuery()
+GET     /sparql                     		controllers.Sparql.sparqlQuery()
+GET     /sparql/                    		controllers.Sparql.sparqlQuery()
+POST    /sparql                     		controllers.Sparql.sparqlQuery()
+POST    /sparql/                    		controllers.Sparql.sparqlQuery()
+GET     /sparql/stopQuery/:queryId          controllers.Sparql.stopQuery(queryId:String)
 
 # Loader
 GET	     /sparql/load                    	controllers.Sparql.load()

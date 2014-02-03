@@ -5,6 +5,8 @@ import java.io.Writer;
 import java.util.HashSet;
 import java.util.List;
 
+import org.apache.http.client.utils.URIUtils;
+
 
 import com.hp.hpl.jena.vocabulary.DC;
 import com.hp.hpl.jena.vocabulary.OWL;
@@ -13,6 +15,7 @@ import com.hp.hpl.jena.vocabulary.RDFS;
 import com.mnemotix.ginseng.data.StringUtils;
 import com.mnemotix.ginseng.vocabulary.Foaf;
 import com.mnemotix.ginseng.vocabulary.SemEHR;
+import com.sun.msv.util.Uri;
 
 import fr.inria.acacia.corese.cg.datatype.DatatypeMap;
 import fr.maatg.pandora.clients.fedehr.exception.InvalidDataError;
@@ -237,7 +240,7 @@ public class RDFExporter {
 	}
 
 	public String buildClinicalVariableTypeURI(String cvtName){
-		return SemEHR.NS + "ClinicalVariableType-"+ StringUtils.normalize(cvtName).replaceAll("\\s", "");
+		return SemEHR.NS + "ClinicalVariableType-"+ Uri.escapeDisallowedChars(StringUtils.normalize(cvtName).replaceAll("\\s", ""));
 	}
 
 	public String buildClinicalVariableTypeURI(ClinicalVariableType clinicalVariableType) {

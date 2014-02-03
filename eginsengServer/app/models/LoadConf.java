@@ -8,7 +8,9 @@ public class LoadConf {
 	public String rdfSourcePath;
 	@Required
 	public String graph;
-
+	
+	public long startTime = System.currentTimeMillis();
+	
 	public LoadConf(){
 		
 	}
@@ -17,6 +19,11 @@ public class LoadConf {
 		this.rdfSourcePath = rdfSourcePath;
 		this.graph = graph;
 	}
+
+	public String getId() {
+		return  "load-"+startTime;
+	}
+	
 	public String getRdfSourcePath() {
 		return rdfSourcePath;
 	}

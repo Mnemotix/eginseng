@@ -8,6 +8,8 @@ import java.util.Map;
 import org.codehaus.jackson.JsonNode;
 import org.junit.*;
 
+import com.sun.msv.util.Uri;
+
 import fr.inria.acacia.corese.exceptions.EngineException;
 import fr.inria.edelweiss.kgdqp.core.QueryProcessDQP;
 import fr.inria.edelweiss.kgdqp.core.WSImplem;
@@ -37,6 +39,11 @@ import static org.fest.assertions.Assertions.*;
 */
 public class ApplicationTest {
 
+	@Test
+	public void encodeURI(){
+		System.out.println(Uri.escapeDisallowedChars("grossesse-amniocentese-prelevementpourl\'amniocentese"));
+	}
+	
     @Test 
     public void simpleCheck() {
         int a = 1 + 1;

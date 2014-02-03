@@ -1,77 +1,165 @@
 package com.mnemotix.semweb;
 
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.Map;
+import java.util.Queue;
+
+import play.mvc.Result;
+
+import models.LoadConf;
+import models.Query;
+
 import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
+import akka.actor.PoisonPill;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
-import akka.routing.RoundRobinRouter;
 
 import fr.inria.acacia.corese.exceptions.EngineException;
+import fr.inria.edelweiss.kgdqp.core.QueryProcessDQP;
+import fr.inria.edelweiss.kgdqp.core.WSImplem;
+import fr.inria.edelweiss.kgram.api.query.Provider;
 import fr.inria.edelweiss.kgram.core.Mappings;
 import fr.inria.edelweiss.kgraph.core.Graph;
+import fr.inria.edelweiss.kgraph.query.ProviderImpl;
 import fr.inria.edelweiss.kgraph.query.QueryProcess;
 import fr.inria.edelweiss.kgtool.load.Load;
 import fr.inria.edelweiss.kgtool.print.CSVFormat;
 import fr.inria.edelweiss.kgtool.print.JSONFormat;
-import fr.inria.edelweiss.kgtool.print.RDFFormat;
+import fr.inria.edelweiss.kgtool.print.ResultFormat;
+import fr.inria.edelweiss.kgtool.print.TripleFormat;
 import fr.inria.edelweiss.kgtool.print.XMLFormat;
 
 import com.mnemotix.mnemokit.semweb.Format;
 
-public class KgramActor {
+public class KgramActor extends UntypedActor {
 
-	public static final int MAX_WORKERS = 10;
 
-	public static Graph graph;
-	public static Load load;
-	public static final Format defaultFormat = Format.JSON;
+	public static final String STOPQUERY = "STOPQUERY";
+	  
+	public final int MAX_WORKERS = 3; //TODO
+
+
+	static boolean DQPMode = false;
+
+	static boolean rdfsEntailment = false;
+	static Graph graph = Graph.create(rdfsEntailment);	
+
+	static Graph graphDQP = Graph.create(false); //TODO voir avec Alban
+	public static Map<String, URL> dqpEndpoints = new HashMap<String, URL>();
+		
+	Map<String, ActorRef> initialSenders = new HashMap<String, ActorRef>();
+	Map<String, Query> runningQueries = new HashMap<String, Query>();
+	Queue<Query> fifoWaitingQueries = new LinkedList<Query>();
+	Map<String, ActorRef> runningWorkers = new HashMap<String, ActorRef>();
 	
-	public static void init(Boolean rdfsEntailment){
-		graph = Graph.create(rdfsEntailment);	
-		load = Load.create(graph);
-	}
 	
-	public static void query(models.Query query){
-		run(query);
-	}
-	
-	public static void load(models.LoadConf load){
-		run(load);
-	}
-
-	private static void run(Object message) {
-		KgramActor task = new KgramActor();
-		// Create an Akka system
-		final ActorSystem system = ActorSystem.create(task.getClass().getSimpleName());
-		
-		
-		ActorRef master = system.actorOf( new Props(Master.class));
-
-		
-		// start the process
-		master.tell(message, null);
-
-	}
-	
-	public static class Master extends UntypedActor {
-		
-		private final ActorRef workerRouter;
-		
-		public Master(){
-			workerRouter = this.getContext().actorOf(new Props(Worker.class).withRouter(new RoundRobinRouter(MAX_WORKERS)), "workerRouter");
-		}
-		
-		@Override
-		public void onReceive(Object message) throws Exception {
-			if (message instanceof models.Query) {
-				workerRouter.tell(message, this.getSelf());
+	@Override
+	public void onReceive(Object message) throws Exception {
+		System.out.println(message.getClass().getName());
+		if (message instanceof models.Query) {
+			Query query = (Query) message;
+			initialSenders.put(query.getId(), getSender());
+			if(runningWorkers.size() < MAX_WORKERS){
+				ActorRef queryWorker = getContext().system().actorOf( new Props(Worker.class), "query-"+query.getId());
+				runningWorkers.put(query.getId(), queryWorker);
+				runningQueries.put(query.getId(), query);
+				queryWorker.tell(message, this.getSelf());
 			}
-			else if (message instanceof models.LoadConf) {
-				workerRouter.tell(message, this.getSelf());
-			} else {
-				unhandled(message);
+			else{ 
+				fifoWaitingQueries.add(query);
+			}
+		} 
+		else if (message instanceof LoadConf){
+	    	LoadConf load = (LoadConf) message;
+			initialSenders.put(load.getId(), getSender());
+			ActorRef loadActor = getContext().system().actorOf( new Props(Worker.class), "load-"+load.getId());
+			loadActor.tell(message, this.getSelf());
+		}
+		else if(message instanceof Reset){
+		       try {
+		           graph = Graph.create(rdfsEntailment);
+		           graphDQP = Graph.create(rdfsEntailment);	
+		           dqpEndpoints.clear();
+		           DQPMode = false;
+		       } catch (Exception ex) {
+		           ex.printStackTrace();
+		       }
+		       getSender().tell(status(), getSelf());
+		}
+		else if(message instanceof AddDataSource){
+			String endpoint = ((AddDataSource)message).getEndpoint();
+		       try {
+			       	if(!dqpEndpoints.containsKey(endpoint)){
+				        	URL endpointURL = new URL(endpoint);
+					        dqpEndpoints.put(endpoint, endpointURL);
+			       	}
+			        System.out.println(endpoint+" added to the federation engine");
+		       } catch (MalformedURLException ex) {
+		           ex.printStackTrace();
+		       }
+		       getSender().tell(status(), getSelf());
+		}
+		else if(message instanceof RemoveDataSource){
+			String endpoint = ((RemoveDataSource)message).getEndpoint();
+			 if(dqpEndpoints.containsKey(endpoint)){
+			    	dqpEndpoints.remove(endpoint);
+		    }
+			 getSender().tell(status(), getSelf());
+		}
+		else if(message instanceof Status){
+		       getSender().tell(status(), getSelf());
+		}
+		else if(message instanceof SetDQPMode){
+			DQPMode = ((SetDQPMode)message).isDqpMode();
+		    getSender().tell(status(), getSelf());
+		}
+		else if (message instanceof Done){
+			Done done = (Done)message;
+			ActorRef initialSender = initialSenders.remove(done.getId());
+			System.out.println(done.getId() + " ==> "+initialSender);
+			initialSender.tell(done.getResult(), this.getSelf());
+			runningWorkers.remove(done.getId());
+			if(done.getMessage() instanceof Query){
+				Query query = (Query)done.getMessage();
+				runningQueries.remove(query.getId());
+			}
+			if(!fifoWaitingQueries.isEmpty()){
+				Query nextQuery = fifoWaitingQueries.remove();
+				ActorRef nextQueryActor = getContext().system().actorOf( new Props(Worker.class), "query-"+nextQuery.getId());
+				runningWorkers.put(nextQuery.getId(), nextQueryActor);
+				runningQueries.put(nextQuery.getId(), nextQuery);
+				nextQueryActor.tell(message, this.getSelf());
 			}
 		}
+		else if (message instanceof StopQuery){
+			StopQuery stopQuery = (StopQuery) message;
+			ActorRef initialSender = initialSenders.remove(stopQuery.getQueryId());
+			System.out.println("initialSender ==> " + stopQuery.getQueryId());
+			ActorRef queryActor = runningWorkers.remove(stopQuery.getQueryId());
+			if(queryActor!= null){
+				runningQueries.remove(stopQuery.getQueryId());
+				queryActor.tell(PoisonPill.getInstance(), this.getSelf());
+				initialSender.tell("STOPPED", this.getSelf());
+			}
+			getSender().tell("STOPPED", this.getSelf());
+		}
+		else {
+			System.out.println(message);
+			unhandled(message);
+		}
+	}
+	
+	public String status() {
+		String jsonStatus = "{ " +
+				"\"dqpMode\":"+DQPMode + ", " +
+				"\"datasources\":" +dqpEndpoints.values()+", " +
+				"\"running\":" +runningQueries.values()+", " +
+				"\"waiting\":" +fifoWaitingQueries +
+				"}";
+		return jsonStatus;
 	}
 	
 	public static class Worker extends UntypedActor {
@@ -80,47 +168,147 @@ public class KgramActor {
 		public void onReceive(Object message) throws Exception {
 			if (message instanceof models.Query) {
 				models.Query query = (models.Query) message;
-				query(query.getQuery(), KgramActor.graph, Format.valueOf(query.getFormat()));
+				//Thread.sleep(10000);
+				String result = query(query);
+				getSender().tell(new Done(query.getId(), query, result), getSelf());
+				//query(query.getQuery(), KgramActor.graph, Format.valueOf(query.getFormat()));
 			}
-			else if (message instanceof models.LoadConf) {
-				
-				
-			} else {
+
+			else if (message instanceof LoadConf){
+		    	LoadConf load = (LoadConf) message;
+		    	loadDataSet(load.getRdfSourcePath(), load.getGraph());
+		    	getSender().tell(new Done(load.getId(), load, String.valueOf(true)), getSelf());
+			}
+			else {
 				unhandled(message);
 			}
 		}
 		
-		public void loadDataSet(String rdfSourcePath, String graphURI){
+
+		
+		public static String query(Query query) throws EngineException {
+			String result = null;
+			Mappings map = null;
+			System.out.println("isDQPMode(): "+DQPMode);
+			if(DQPMode){
+				Provider sProv = ProviderImpl.create();
+				QueryProcessDQP execDQP = QueryProcessDQP.create(graphDQP, sProv, true);
+				for(URL endpoint : dqpEndpoints.values()){
+					System.out.println("addRemote "+endpoint);
+					execDQP.addRemote(endpoint, WSImplem.REST);
+				}
+				execDQP.setDebug(true);
+				map = execDQP.query(query.getQuery());
+			}else{ 
+				QueryProcess exec = QueryProcess.create(graph);
+				map = exec.query(query.getQuery());
+			}
+			System.out.println("nb mappings:"+map.size());
+			Object formattedResult = null;
+			try{
+				Format format = Format.valueOf(query.getFormat().toUpperCase());
+				if(format == Format.JSON)
+					formattedResult = JSONFormat.create(map);
+				if(format == Format.CSV)
+					formattedResult = CSVFormat.create(map);
+				if(format == Format.XML)
+					formattedResult = XMLFormat.create(map);
+				if(format == Format.N3)
+					formattedResult = TripleFormat.create(map);			
+			}catch(Exception e){
+				formattedResult = ResultFormat.create(map);
+			}
+			result = formattedResult.toString();
+			return result;
+		}
+		
+		public static void loadDataSet(String rdfSourcePath, String graphURI){
+			Load load = Load.create(graph);
 			if(graphURI != null) {
 				load.load(rdfSourcePath, graphURI);	
 			} else {
 				load.load(rdfSourcePath);
 			}
 		}
-		
-		public String query(String query, Graph graph, Format format) throws EngineException {
-			String result = null;
-			QueryProcess exec = QueryProcess.create(graph);
-			Mappings map = exec.query(query);
-			Object formattedResult = null;
-			if(format == Format.JSON)
-				formattedResult = JSONFormat.create(map);
-			if(format == Format.CSV)
-				formattedResult = CSVFormat.create(map);
-			if(format == Format.XML)
-				formattedResult = XMLFormat.create(map);
-			if(format == Format.RDF_XML)
-				formattedResult = RDFFormat.create(map);
-			if(formattedResult != null){
-				result = formattedResult.toString();
-			}else { 
-				formattedResult = JSONFormat.create(map);
-			}
-			return result;
-		}
 
 	}
 	
+	public static class Done{
+		String id;
+		Object message;
+		String result;
 
+		public Done(String id, Object message, String result) {
+			this.id = id;
+			this.message = message;
+			this.result = result;
+		}
+		
+		public String getId() {
+			return id;
+		}
+
+		public String getResult() {
+			return result;
+		}
+
+		public Object getMessage() {
+			return message;
+		}	
+	}
 	
+	public static class StopQuery{
+		String queryId;
+
+		public StopQuery(String queryId) {
+			this.queryId = queryId;
+		}
+
+		public String getQueryId() {
+			return queryId;
+		}
+	}
+
+	public static class Reset{
+	}
+
+	public static class Status{
+	}
+
+
+	public static class SetDQPMode{
+		boolean dqpMode;
+		
+		public SetDQPMode(boolean dqpMode){
+			this.dqpMode = dqpMode;
+		}
+
+		public boolean isDqpMode() {
+			return dqpMode;
+		}
+	}
+
+	public static class AddDataSource{
+		String endpoint;
+		
+		public AddDataSource(String endpoint){
+			this.endpoint = endpoint;
+		}
+
+		public String getEndpoint() {
+			return endpoint;
+		}
+	}
+
+	public static class RemoveDataSource{
+		String endpoint;
+		
+		public RemoveDataSource(String endpoint){
+			this.endpoint = endpoint;
+		}
+
+		public String getEndpoint() {
+			return endpoint;
+		}
+	}
 }
