@@ -1,9 +1,12 @@
 package models;
 
+
+import org.codehaus.jackson.node.ObjectNode;
+
 import com.mnemotix.mnemokit.semweb.Format;
-import com.sun.org.apache.xml.internal.security.Init;
 
 import play.data.validation.Constraints.Required;
+import play.libs.Json;
 
 public class Query {
 
@@ -89,13 +92,18 @@ public class Query {
 		return "query-"+startTime;
 	}
 	
+
+	public ObjectNode toJSON(){
+		ObjectNode json = Json.newObject();
+		json.put("id", getId());
+		json.put("startTime", new Long(startTime));
+		json.put("format", format);
+		json.put("query", query);
+		return json;
+	}
+	
 	public String toString(){
-		return "{ " +
-				"\"id\": \""+getId()+"\", " +
-				"\"startTime\": \""+startTime+"\", " +
-				"\"format\": \""+format+"\", " +
-				"\"query\": \""+query+"\"" +
-				"}";
+		return toJSON().toString();
 	}
 	
 }

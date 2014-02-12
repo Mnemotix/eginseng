@@ -16,6 +16,7 @@ import play.mvc.*;
 
 import static akka.pattern.Patterns.ask;
 
+import models.DataSourceConf;
 import models.Query;
 import models.LoadConf;
 
@@ -27,6 +28,7 @@ public class Sparql extends Controller {
 	static ActorRef kgramActor = system.actorOf( new Props(KgramActor.class), "kgramActor");	;
 	static Form<Query> queryForm = Form.form(Query.class);
 	static Form<LoadConf> loadForm = Form.form(LoadConf.class);
+	static Form<DataSourceConf> datasourceForm = Form.form(DataSourceConf.class);
 
 	private static long QUERY_TIMEOUT = 120000;
 	private static long LOAD_TIMEOUT = 120000;
@@ -47,14 +49,17 @@ public class Sparql extends Controller {
 	public static Result setDQPMode(boolean dqpMode) {
 		return getPromiseKgramActor(new KgramActor.SetDQPMode(dqpMode), ADMIN_TIMEOUT);
 	}
-    
+    public static Result admin(){
+    	return ok(views.html.sparql.admin.render());
+    }
+	
     public static Result load(){
     	Form<LoadConf> filledLoad = loadForm.bindFromRequest(); 
     	if(!filledLoad.hasErrors()){
 	    	LoadConf load = filledLoad.get();
 	    	return getPromiseKgramActor(load, LOAD_TIMEOUT);
     	}
-    	return ok(views.html.sparql.load.render());
+    	return status();
     }
     
     public static Result sparqlQuery(){
@@ -99,16 +104,20 @@ public class Sparql extends Controller {
 		 return getPromiseKgramActor(new KgramActor.Reset(), ADMIN_TIMEOUT);
 	 }
 	 
-	 public static Result removeDataSource(String endpoint){
-		 return getPromiseKgramActor(new KgramActor.RemoveDataSource(endpoint), ADMIN_TIMEOUT);
+	 public static Result removeDataSource(){
+	    	Form<DataSourceConf> dataSourceConf = datasourceForm.bindFromRequest(); 
+	    	if(!dataSourceConf.hasErrors()){
+	    		return getPromiseKgramActor(new KgramActor.RemoveDataSource(dataSourceConf.get().getEndpoint()), ADMIN_TIMEOUT);
+	    	}
+	    	return status();
 	 }
 	 
-	 public static Result addDataSource(String endpoint) {
-		 return getPromiseKgramActor(new KgramActor.AddDataSource(endpoint), ADMIN_TIMEOUT);
-	 }
-	 
-	 public static Result addDataSourceIndex(){
-	    return ok(views.html.sparql.addDataSource.render());
+	 public static Result addDataSource() {
+    	Form<DataSourceConf> dataSourceConf = datasourceForm.bindFromRequest(); 
+    	if(!dataSourceConf.hasErrors()){
+    		return getPromiseKgramActor(new KgramActor.AddDataSource(dataSourceConf.get().getEndpoint()), ADMIN_TIMEOUT);
+    	}
+    	return status();
 	 }
 	
 	public static Result getPromiseKgramActor(Object message, long timeout){

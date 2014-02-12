@@ -1,0 +1,64 @@
+@import helper._
+
+@main("Admin", "admin") {
+
+ 
+	<div class="container" id="queries">
+		<div class="page-header">Queries</div>
+		<div id="noquery" class="well">
+        	nothing running
+      	</div>
+		<table class="table .table-condensed" id="querytable"></table>
+	</div>
+
+	<div class="row-fluid">
+	   	<div class="col-md-2" id="dqp">
+			<div class="page-header">Mode</div>
+			<div>
+				
+		        <button id="btnDQPOn" type="button" class="btn btn-primary">Turn<strong> On </strong>DQP</button>
+		        <button id="btnDQPOff" type="button" class="btn btn-primary">Turn<strong> Off </strong> DQP</button>
+				
+			</div>	        
+		   </form>   
+	   </div>
+	   
+	   	<div id="load" class="col-md-7">
+			<div  class="page-header">Local Graph </div>   
+			
+	          <div class="panel panel-default">
+	            <div class="panel-heading">
+					<div  class="panel-title">Load</div>   
+				</div>  
+				
+         	   	<div class="panel-body">
+					<div class="row">
+			    	<span class="col-md-3">RDF Source Path</span><span class="col-md-4"><input id="rdfSourcePath" size="60" type="text" name="rdfSourcePath"  value="resources/ontologies/semEHR.rdfs"/></span>
+			        </div>
+			        <br/>
+					<div class="row">
+			        <span class="col-md-3">Graph Name</span><span class="col-md-4"><input  id="graph" size="60" type="text" name="graph"  value="http://e-ginseng.org/graph/ontology/semEHR"/></span>
+			        </div>
+			        <button id="btnLoad" type="button" class="btn btn-primary">Load</button>
+			    </div>
+			</div>
+			<div class="panel panel-default">
+	            <div class="panel-heading">
+					<div  class="panel-title">Danger</div>   
+				</div>	
+         	   	<div class="panel-body">
+     				<button id="btnReset" type="button" class="btn btn-danger">reset</button>
+				</div>
+			</div>
+		</div>   
+		
+		<div class="col-md-7 table-responsive" id="sources">
+			<div class="page-header">Federated Sources</div>
+	    	<input type="url" size="60"  id="endpoint"  name="endpoint" value="http://fr.dbpedia.org/sparql"/>
+	        <button id="btnAddSource" type="button" class="btn btn-sm btn-primary">Add</button>
+	        <br/>
+	        <br/>
+			<table class="table .table-condensed" id="sourcestable"></table>
+		</div>
+   </div>
+}

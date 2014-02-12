@@ -1,15 +1,68 @@
-@(title: String)(content: Html)
-
+@(title: String, nav: String)(content: Html)
 <!DOCTYPE html>
-
 <html>
     <head>
+   		 <meta charset="utf-8">
+	    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+	    <meta name="viewport" content="width=device-width, initial-scale=1">
+	    
+	    
         <title>@title</title>
-        <link rel="stylesheet" media="screen" href="@routes.Assets.at("stylesheets/main.css")">
         <link rel="shortcut icon" type="image/png" href="@routes.Assets.at("images/mnemotix-logo-petit.png")">
+        
+    	<link href="@routes.Assets.at("bootstrap-3.1.0/css/bootstrap.min.css")" rel="stylesheet">
+        <link rel="stylesheet" media="screen" href="@routes.Assets.at("stylesheets/main.css")">
+    	
+    <!-- Bootstrap theme -->
+    	<link href="@routes.Assets.at("bootstrap-3.1.0/css/bootstrap-theme.min.css")" rel="stylesheet">
+        
     </head>
-    <body>
-        <a href="http://www.mnemotix.com" ><img width="150" src="@routes.Assets.at("images/mnemotix-logo-transparent.png")"/></a>
-        @content
+    <body role="document">
+	    
+	    <script type="text/javascript" src='@routes.Assets.at("javascripts/jquery/jquery-1.10.2.min.js")'></script>
+	    <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+	      <div class="container">
+	        <div class="navbar-header">
+	          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+	            <span class="sr-only">Toggle navigation</span>
+	            <span class="icon-bar"></span>
+	            <span class="icon-bar"></span>
+	            <span class="icon-bar"></span>
+	          </button>
+	        </div>
+	        <div class="collapse navbar-collapse">
+	          <ul class="nav navbar-nav">
+	            <li class="@("active".when(nav=="sparql"))"><a href="/sparql">sparql</a></li>
+	            <li class="@("active".when(nav=="admin"))"><a href="/sparql/admin">admin</a></li>
+	          </ul>
+	        </div><!--/.nav-collapse -->
+	      </div>
+	    </div>
+		<div class="container">
+		
+	
+		    	<div class="container" id="alerts">
+					<div id="alertsuccess" class="alert alert-success">
+						<span id="alertsuccesstext"></span><button id="alertsuccessclose" type="button" class="close" aria-hidden="true">&times;</button>
+					</div>
+					<div id="alertinfo" class="alert alert-info">
+						<span id="alertinfotext"></span><button id="alertinfoclose" type="button" class="close" aria-hidden="true">&times;</button>
+					</div>
+					<div id="alertwarning" class="alert alert-warning">
+						<span id="alertwarningtext"></span><button id="alertwarningclose" type="button" class="close" aria-hidden="true">&times;</button>
+					</div>
+					<div id="alertdanger" class="alert alert-danger">
+						<span id="alertdangertext"></span><button id="alertdangerclose" type="button" class="close" aria-hidden="true">&times;</button>
+					</div>
+				</div>	
+				
+		    	<div class="container">
+		   			<button id="btnrefresh" type="button" class="btn btn-sm btn-default"><span class="glyphicon glyphicon-refresh"></span></button>
+		   		</div>
+	        @content  
+	    </div>
+    	<script type="text/javascript" src='@routes.Assets.at("bootstrap-3.1.0/js/bootstrap.min.js")'></script>
+    	<script type="text/javascript" src='@routes.Assets.at("javascripts/sparql/main.js")'></script>
+   	 	<div hidden class="jumbotron" id="log"></div>
     </body>
 </html>

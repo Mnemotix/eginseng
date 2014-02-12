@@ -1,5 +1,6 @@
 package com.mnemotix.semweb;
 
+import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
@@ -7,7 +8,10 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.Queue;
 
-import play.mvc.Result;
+import org.codehaus.jackson.node.ArrayNode;
+import org.codehaus.jackson.node.ObjectNode;
+
+import play.libs.Json;
 
 import models.LoadConf;
 import models.Query;
@@ -81,9 +85,10 @@ public class KgramActor extends UntypedActor {
 		else if(message instanceof Reset){
 		       try {
 		           graph = Graph.create(rdfsEntailment);
-		           graphDQP = Graph.create(rdfsEntailment);	
-		           dqpEndpoints.clear();
-		           DQPMode = false;
+		           //TODO kill all queries
+		           //graphDQP = Graph.create(rdfsEntailment);	
+		           //dqpEndpoints.clear();
+		           //DQPMode = false;
 		       } catch (Exception ex) {
 		           ex.printStackTrace();
 		       }
@@ -144,7 +149,7 @@ public class KgramActor extends UntypedActor {
 				queryActor.tell(PoisonPill.getInstance(), this.getSelf());
 				initialSender.tell("STOPPED", this.getSelf());
 			}
-			getSender().tell("STOPPED", this.getSelf());
+			getSender().tell(status(), this.getSelf());
 		}
 		else {
 			System.out.println(message);
@@ -153,13 +158,29 @@ public class KgramActor extends UntypedActor {
 	}
 	
 	public String status() {
-		String jsonStatus = "{ " +
-				"\"dqpMode\":"+DQPMode + ", " +
-				"\"datasources\":" +dqpEndpoints.values()+", " +
-				"\"running\":" +runningQueries.values()+", " +
-				"\"waiting\":" +fifoWaitingQueries +
-				"}";
-		return jsonStatus;
+		ObjectNode jsonStatus = Json.newObject();
+		jsonStatus.put("dqpMode", new Boolean(DQPMode));
+		
+		ArrayNode jsonDatasources = jsonStatus.arrayNode();
+		for(URL endpoint : dqpEndpoints.values()){
+			jsonDatasources.add(endpoint.toString());
+		}
+		jsonStatus.put("datasources", jsonDatasources);
+		
+
+		ArrayNode jsonRunning = jsonStatus.arrayNode();
+		for(Query query : runningQueries.values()){
+			jsonRunning.add(query.toJSON());
+		}
+		jsonStatus.put("running", jsonRunning);
+
+		ArrayNode jsonWaiting = jsonStatus.arrayNode();
+		for(Query query : fifoWaitingQueries){ //TODO check that the it does not empty the fifo
+			jsonWaiting.add(query.toJSON());
+		}
+		jsonStatus.put("waiting", jsonWaiting);		
+
+		return jsonStatus.toString();
 	}
 	
 	public static class Worker extends UntypedActor {
@@ -176,8 +197,12 @@ public class KgramActor extends UntypedActor {
 
 			else if (message instanceof LoadConf){
 		    	LoadConf load = (LoadConf) message;
-		    	loadDataSet(load.getRdfSourcePath(), load.getGraph());
-		    	getSender().tell(new Done(load.getId(), load, String.valueOf(true)), getSelf());
+				if(new File(load.getRdfSourcePath()).exists()){
+			    	loadDataSet(load.getRdfSourcePath(), load.getGraph());
+			    	getSender().tell(new Done(load.getId(), load, String.valueOf(true)), getSelf());
+				}else{
+			    	getSender().tell(new Done(load.getId(), load, String.valueOf(false)), getSelf());
+				}
 			}
 			else {
 				unhandled(message);
