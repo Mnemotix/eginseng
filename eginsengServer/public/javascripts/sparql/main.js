@@ -8,7 +8,7 @@ function refresh(){
 	 
 	request.done(function( msg ) {	
 		log( msg );
-		updateStatus($.parseJSON(msg));
+		updateStatus(msg);
 	});
 	 
 	request.fail(function( jqXHR, msg ) {
@@ -89,6 +89,9 @@ function htmlEncode(value){
 function runQuery(query, format){
 
 	$('#resultTable').html("");
+	$('#alertsuccess').hide();
+	$('#alertwarning').hide();
+	$('#alertdanger').hide();
 	$('#alertinfotext').html("running query ...");
 	$('#alertinfo').show();
 	$("#btnRun").attr('disabled','disabled');
@@ -100,13 +103,17 @@ function runQuery(query, format){
 	  data: { query : query, format : format }
 	});
 	 
+	
+	
+	
 	request.done(function( msg ) {
+		
 		var alert = "running query : completed";
 		log(alert);
 		$("#btnRun").removeAttr('disabled');
 		$('#alertinfo').hide();
 		try{
-			printResults($.parseJSON(msg));
+			printResults(msg);
 			$('#alertsuccesstext').html(alert);
 			$('#alertsuccess').show();
 		}catch(err){
@@ -118,7 +125,7 @@ function runQuery(query, format){
 	});
 	 
 	request.fail(function( jqXHR, msg ) {
-		$("btnRun").removeAttr('disabled');
+		$("#btnRun").removeAttr('disabled');
 		$('#alertinfo').hide();
 		$('#alertwarningtext').html("an error occurred: "+msg);
 		$('#alertwarning').show();
@@ -206,7 +213,7 @@ function setDQPMode(isOn){
 		 
 		request.done(function( msg ) {	
 			log( msg );
-			updateStatus($.parseJSON(msg));
+			updateStatus(msg);
 		});
 		 
 		request.fail(function( jqXHR, msg ) {
@@ -294,7 +301,7 @@ function stopQuery(queryId){
 	request.done(function( msg ) {
 		//var status = eval(msg);
 		//alert(status);
-		updateStatus( $.parseJSON(msg));
+		updateStatus(msg);
 		log( msg );
 	});
 	 
@@ -313,7 +320,7 @@ function addSource(endpoint){
 	request.done(function( msg ) {
 		//var status = eval(msg);
 		//alert(status);
-		updateStatus( $.parseJSON(msg));
+		updateStatus(msg);
 		log( msg );
 	});
 	 
@@ -330,8 +337,7 @@ function removeSource(endpoint){
 	});
 	 
 	request.done(function( msg ) {
-		var status = $.parseJSON(msg); 
-		updateStatus(status);
+		updateStatus(msg);
 		log( msg );
 	});
 	 

@@ -15,6 +15,7 @@ import play.libs.Json;
 
 import models.LoadConf;
 import models.Query;
+import models.ResponseFormat;
 
 import akka.actor.ActorRef;
 import akka.actor.PoisonPill;
@@ -157,7 +158,7 @@ public class KgramActor extends UntypedActor {
 		}
 	}
 	
-	public String status() {
+	public ResponseFormat status() {
 		ObjectNode jsonStatus = Json.newObject();
 		jsonStatus.put("dqpMode", new Boolean(DQPMode));
 		
@@ -180,7 +181,7 @@ public class KgramActor extends UntypedActor {
 		}
 		jsonStatus.put("waiting", jsonWaiting);		
 
-		return jsonStatus.toString();
+		return new ResponseFormat("application/json", jsonStatus);
 	}
 	
 	public static class Worker extends UntypedActor {
@@ -191,7 +192,7 @@ public class KgramActor extends UntypedActor {
 				models.Query query = (models.Query) message;
 				//Thread.sleep(10000);
 				try{
-					String result = query(query);
+					ResponseFormat result = query(query);
 					getSender().tell(new Done(query.getId(), query, result), getSelf());
 				}catch (EngineException e) {
 					getSender().tell(new Done(query.getId(), query, e.getMessage()), getSelf());
@@ -214,7 +215,7 @@ public class KgramActor extends UntypedActor {
 		
 
 		
-		public static String query(Query query) throws EngineException {
+		public static ResponseFormat query(Query query) throws EngineException {
 			String result = null;
 			Mappings map = null;
 			System.out.println("isDQPMode(): "+DQPMode);
@@ -233,21 +234,29 @@ public class KgramActor extends UntypedActor {
 			}
 			System.out.println("nb mappings:"+map.size());
 			Object formattedResult = null;
+			String contentType = "application/rdf+xml";
 			try{
 				Format format = Format.valueOf(query.getFormat().toUpperCase());
-				if(format == Format.JSON)
+				if(format == Format.JSON){
 					formattedResult = JSONFormat.create(map);
-				if(format == Format.CSV)
-					formattedResult = CSVFormat.create(map);
-				if(format == Format.XML)
-					formattedResult = XMLFormat.create(map);
-				if(format == Format.N3)
-					formattedResult = TripleFormat.create(map);			
+					contentType = "application/sparql-results+json";
+				}
+				if(format == Format.CSV){
+					formattedResult = CSVFormat.create(map);	
+					contentType = "text/csv";
+				}
+				if(format == Format.XML){
+					contentType = "application/sparql-results+xml";
+					formattedResult = XMLFormat.create(map);	
+				}if(format == Format.N3){
+					contentType = "text/turtle";
+					formattedResult = TripleFormat.create(map);		
+				}	
 			}catch(Exception e){
 				formattedResult = ResultFormat.create(map);
 			}
 			result = formattedResult.toString();
-			return result;
+			return new ResponseFormat(contentType, result);
 		}
 		
 		public static void loadDataSet(String rdfSourcePath, String graphURI){
@@ -264,9 +273,9 @@ public class KgramActor extends UntypedActor {
 	public static class Done{
 		String id;
 		Object message;
-		String result;
+		Object result;
 
-		public Done(String id, Object message, String result) {
+		public Done(String id, Object message, Object result) {
 			this.id = id;
 			this.message = message;
 			this.result = result;
@@ -276,7 +285,7 @@ public class KgramActor extends UntypedActor {
 			return id;
 		}
 
-		public String getResult() {
+		public Object getResult() {
 			return result;
 		}
 

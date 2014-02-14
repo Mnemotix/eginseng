@@ -21,7 +21,7 @@ public class Query {
 
 	public String chart;
 	
-	public String result;
+	public Object result;
 	
 	public Query(){
 	
@@ -76,11 +76,11 @@ public class Query {
 		this.chart = chart;
 	}
 
-	public String getResult() {
+	public Object getResult() {
 		return result;
 	}
 
-	public void setResult(String result) {
+	public void setResult(Object result) {
 		this.result = result;
 	}
 

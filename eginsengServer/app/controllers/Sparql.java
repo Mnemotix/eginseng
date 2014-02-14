@@ -1,6 +1,7 @@
 package controllers;
 
 import org.apache.commons.lang3.StringUtils;
+import org.codehaus.jackson.JsonNode;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
@@ -19,6 +20,7 @@ import static akka.pattern.Patterns.ask;
 import models.DataSourceConf;
 import models.Query;
 import models.LoadConf;
+import models.ResponseFormat;
 
 public class Sparql extends Controller {
 
@@ -34,8 +36,12 @@ public class Sparql extends Controller {
 	private static long LOAD_TIMEOUT = 120000;
 	private static long ADMIN_TIMEOUT = 10000;
 	
-    public static Result index() {
-    	return TODO;
+    public static Result index() {return ok(
+		views.html.sparql.index.render(
+				new Query(
+						"select * \n" +
+						"where {?x a ?type} \n" +
+						"limit 10", "json", "gTable" )));
     }
     
     public static Result stopQuery(String queryId){
@@ -69,6 +75,7 @@ public class Sparql extends Controller {
     		if(StringUtils.isBlank(query.format)){
     			System.out.println(request().getHeader("Accept"));
     			if(request().accepts("application/sparql-results+json")){
+	        		response().setContentType("application/json");
     				query.setFormat(Format.JSON.toString());
         			//response().setHeader("Content-Type", "application/sparql-results+json"); 
     			} else if(request().accepts("application/sparql-results+xml")){
@@ -135,7 +142,12 @@ public class Sparql extends Controller {
 			    }).map(
     			new Function<Object,Result>() {
 	    		        public Result apply(Object response) {
-	    		          return ok(response.toString());
+	    		        	if(response instanceof ResponseFormat){
+	    		        		ResponseFormat responseFormat = (ResponseFormat) response;
+	    		        		response().setContentType(responseFormat.getContentType());
+	    		        		return ok(responseFormat.getContent().toString());
+	    		        	}
+	    		        	return ok(response.toString());
 	    		        }
     		    }
 			));
