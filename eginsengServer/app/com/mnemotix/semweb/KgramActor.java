@@ -186,13 +186,16 @@ public class KgramActor extends UntypedActor {
 	public static class Worker extends UntypedActor {
 
 		@Override
-		public void onReceive(Object message) throws Exception {
+		public void onReceive(Object message) {
 			if (message instanceof models.Query) {
 				models.Query query = (models.Query) message;
 				//Thread.sleep(10000);
-				String result = query(query);
-				getSender().tell(new Done(query.getId(), query, result), getSelf());
-				//query(query.getQuery(), KgramActor.graph, Format.valueOf(query.getFormat()));
+				try{
+					String result = query(query);
+					getSender().tell(new Done(query.getId(), query, result), getSelf());
+				}catch (EngineException e) {
+					getSender().tell(new Done(query.getId(), query, e.getMessage()), getSelf());
+				}
 			}
 
 			else if (message instanceof LoadConf){

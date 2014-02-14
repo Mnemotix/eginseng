@@ -41,28 +41,39 @@
 		<div class="container">
 		
 	
-		    	<div class="container" id="alerts">
-					<div id="alertsuccess" class="alert alert-success">
-						<span id="alertsuccesstext"></span><button id="alertsuccessclose" type="button" class="close" aria-hidden="true">&times;</button>
-					</div>
-					<div id="alertinfo" class="alert alert-info">
-						<span id="alertinfotext"></span><button id="alertinfoclose" type="button" class="close" aria-hidden="true">&times;</button>
-					</div>
-					<div id="alertwarning" class="alert alert-warning">
-						<span id="alertwarningtext"></span><button id="alertwarningclose" type="button" class="close" aria-hidden="true">&times;</button>
-					</div>
-					<div id="alertdanger" class="alert alert-danger">
-						<span id="alertdangertext"></span><button id="alertdangerclose" type="button" class="close" aria-hidden="true">&times;</button>
-					</div>
-				</div>	
-				
-		    	<div class="container">
-		   			<button id="btnrefresh" type="button" class="btn btn-sm btn-default"><span class="glyphicon glyphicon-refresh"></span></button>
-		   		</div>
-	        @content  
+	    	<div class="container" id="alerts">
+				<div id="alertsuccess" class="alert alert-success">
+					<button id="alertsuccessclose" type="button" class="close" aria-hidden="true">&times;</button>	
+					<span id="alertsuccesstext"></span>
+				</div>
+				<div id="alertinfo" class="alert alert-info">
+					<button id="alertinfoclose" type="button" class="close" aria-hidden="true">&times;</button>
+					<span id="alertinfotext"></span>
+				</div>
+				<div id="alertwarning" class="alert alert-warning">
+					<button id="alertwarningclose" type="button" class="close" aria-hidden="true">&times;</button>
+					<span id="alertwarningtext"></span>
+				</div>
+				<div id="alertdanger" class="alert alert-danger">
+					<button id="alertdangerclose" type="button" class="close" aria-hidden="true">&times;</button>
+					<span id="alertdangertext"></span>
+				</div>
+			</div>	
+	    	
+	        @content
+	        
+			    
+		    
 	    </div>
     	<script type="text/javascript" src='@routes.Assets.at("bootstrap-3.1.0/js/bootstrap.min.js")'></script>
     	<script type="text/javascript" src='@routes.Assets.at("javascripts/sparql/main.js")'></script>
-   	 	<div hidden class="jumbotron" id="log"></div>
+   	 	<div hidden class="jumbotron" id="log">
+	   	 	<form role="form">
+				<div class="form-group">
+					   <label>show logs</label>
+				       <input type="checkbox" id="activateLogs"></input>
+				</div>
+			</form>
+   	 	</div>
     </body>
 </html>

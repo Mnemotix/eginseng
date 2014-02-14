@@ -6,16 +6,79 @@
 
 @main("SPARQL", "sparql") {
 
-    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+
+<div class="container">
+	<form role="form">
+		<div class="form-group">
+		   <label for="query">Query</label>
+		<textarea id="query" class="form-control" rows="10" cols="80">select * where {?x ?p ?y}</textarea>
+		</div>
+		<!-- <div class="form-group">
+		   <label for="format">format</label>
+		   <select class="form-control" id="format">
+			<option>rdf</option>
+			<option>xml</option>
+			<option>json</option>
+		   </select>
+		</div>
+		-->
+		<button id="btnRun" type="button" class="btn btn-primary">Run</button>
+	</form>
+	<table class="table .table-condensed" id="resultTable"></table>
+</div>
+
+ <!--    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+ 
+ 
    <script id="sgvzlr_script" src='@routes.Assets.at("javascripts/sgvizler-0.6/sgvizler.js")' type="text/javascript"></script>
+
+
+Google Visualization
+google.visualization.AnnotatedTimeLine
+google.visualization.AreaChart
+google.visualization.BarChart
+google.visualization.BubbleChart
+google.visualization.CandlestickChart
+google.visualization.ColumnChart
+google.visualization.Gauge
+google.visualization.GeoChart
+google.visualization.GeoMap
+google.visualization.ImageSparkLine
+google.visualization.LineChart
+google.visualization.Map
+google.visualization.MotionChart
+google.visualization.OrgChart
+google.visualization.PieChart
+google.visualization.ScatterChart
+google.visualization.SteppedAreaChart
+google.visualization.Table
+google.visualization.TreeMap
+
+Sgvizler Visualization
+sgvizler.visualization.DefList
+sgvizler.visualization.DiiiForceGraph
+sgvizler.visualization.DraculaGraph
+sgvizler.visualization.List
+sgvizler.visualization.Map
+sgvizler.visualization.MapWKT
+sgvizler.visualization.Table
+sgvizler.visualization.Text 
+
+
 
 <div id="queryForm"></div>
 
 <script type="text/javascript">
+/*$(document).ready(
+	    function (){ sgvizler.containerDrawAll(); }
+	);
+	  */
+
   $(document).ready(function() { 
 	  sgvizler.defaultEndpointURL("/sparql");
 	  sgvizler.defaultQuery('@escapeEcmaScript(query.query)');
-	  sgvizler.formDraw("queryForm"); });
+	  sgvizler.formDraw("queryForm");
+  });
   $('#sgvzlr_strEndpointGrp').hide();
  </script>
 
@@ -39,6 +102,7 @@
       {
         display: none;
       }
+     
      span#sgvzlr_btnSendGrp, span#sgvzlr_strSizeGrp
       {
       	margin-top: 10px;
@@ -63,4 +127,5 @@
       }
       */
     </style>
+    -->
 }
