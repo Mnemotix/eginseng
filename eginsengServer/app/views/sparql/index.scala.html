@@ -4,14 +4,21 @@
 
 @import org.apache.commons.lang3.StringEscapeUtils.escapeEcmaScript
 
-@main("SPARQL", "sparql") {
+@css() = {}
+
+@js() = {
+   <script type="text/javascript" src='@routes.Assets.at("javascripts/sparql/sparql.js")'></script>
+}
+
+
+@main("SPARQL", "sparql", css(), js()) {
 
 
 <div class="container">
 	<form role="form">
 		<div class="form-group">
 		   <label for="query">Query</label>
-		<textarea id="query" class="form-control" rows="10" cols="80">select * where {?x ?p ?y}</textarea>
+			<textarea id="query" class="form-control" rows="10">select * where {?x ?p ?y}</textarea>
 		</div>
 		<!-- <div class="form-group">
 		   <label for="format">format</label>

@@ -1,6 +1,12 @@
 @import helper._
 
-@main("Admin", "admin") {
+@css() = {}
+
+@js() = {
+   <script type="text/javascript" src='@routes.Assets.at("javascripts/sparql/admin.js")'></script>
+}
+
+@main("Admin", "admin", css(), js()) {
 
  
   	<div class="container">
@@ -36,14 +42,17 @@
 				</div>  
 				
          	   	<div class="panel-body">
-					<div class="row">
-			    	<span class="col-md-3">RDF Source Path</span><span class="col-md-4"><input id="rdfSourcePath" size="60" type="text" name="rdfSourcePath"  value="resources/ontologies/semEHR.rdfs"/></span>
-			        </div>
-			        <br/>
-					<div class="row">
-			        <span class="col-md-3">Graph Name</span><span class="col-md-4"><input  id="graph" size="60" type="text" name="graph"  value="http://e-ginseng.org/graph/ontology/semEHR"/></span>
-			        </div>
-			        <button id="btnLoad" type="button" class="btn btn-primary">Load</button>
+					<form role="form">
+						<div class="form-group">
+					    	<label for="rdfSourcePath">RDF Source Path</label>
+					    	<input id="rdfSourcePath" class="form-control" type="text"  value="resources/ontologies/semEHR.rdfs"/>
+						</div>
+						<div class="form-group">
+					        <label for="btnLoad">Graph Name</label>
+					        <input  id="graph" class="form-control" type="text"  value="http://e-ginseng.org/graph/ontology/semEHR"/>
+					   </div>
+				        <button id="btnLoad" type="button" class="btn btn-primary">Load</button>
+				  </form>
 			    </div>
 			</div>
 			<div class="panel panel-default">
@@ -58,11 +67,15 @@
 		
 		<div class="col-md-7 table-responsive" id="sources">
 			<div class="page-header">Federated Sources</div>
-	    	<input type="url" size="60"  id="endpoint"  name="endpoint" value="http://fr.dbpedia.org/sparql"/>
-	        <button id="btnAddSource" type="button" class="btn btn-sm btn-primary">Add</button>
-	        <br/>
-	        <br/>
-			<table class="table .table-condensed" id="sourcestable"></table>
+				
+				<form class="form-inline" role="form">
+					<div class="form-group">
+			    		<input type="url" size="60"  id="endpoint" class="form-control"  value="http://fr.dbpedia.org/sparql"/>
+				        <button id="btnAddSource" type="button" class="btn btn-primary">Add</button>
+					<div>
+				</form>
+				<table class="table .table-condensed" id="sourcestable"></table>
 		</div>
    </div>
+   
 }
