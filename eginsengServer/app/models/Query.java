@@ -17,11 +17,15 @@ public class Query {
 	
 	public String format;
 	
+	public long timeout = 120000;
+	
 	public String output;
 
 	public String chart;
 	
 	public Object result;
+	
+	
 	
 	public Query(){
 	
@@ -59,6 +63,14 @@ public class Query {
 		this.output = format;
 	}
 	
+	public long getTimeout() {
+		return timeout;
+	}
+
+	public void setTimeout(long timeout) {
+		this.timeout = timeout;
+	}
+
 	public String getOutput() {
 		return output;
 	}

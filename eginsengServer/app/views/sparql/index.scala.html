@@ -20,6 +20,11 @@
 		   <label for="query">Query</label>
 			<textarea id="query" class="form-control" rows="10">select * where {?x ?p ?y}</textarea>
 		</div>
+		<div class="form-group">
+		   <label for="timeout">Timeout</label>
+			<input type="number" id="timeout" class="form-control" min="1000" value="30000"/>
+		</div>
+		
 		<!-- <div class="form-group">
 		   <label for="format">format</label>
 		   <select class="form-control" id="format">
@@ -31,6 +36,10 @@
 		-->
 		<button id="btnRun" type="button" class="btn btn-primary">Run</button>
 	</form>
+</div>
+
+<br/>
+<div class="container">
 	<table class="table .table-condensed" id="resultTable"></table>
 </div>
 

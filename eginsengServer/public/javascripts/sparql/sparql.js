@@ -1,8 +1,8 @@
 $('#btnRun').click(function() {
-	runQuery($('#query').val(), "json");
+	runQuery($('#query').val(), "json", $('#timeout').val());
 });
 
-function runQuery(query, format){
+function runQuery(query, format, timeout){
 
 	$('#resultTable').html("");
 	$('#alertsuccess').hide();
@@ -16,7 +16,7 @@ function runQuery(query, format){
 	var request = $.ajax({
 	  url: "/sparql",
 	  type: "GET",
-	  data: { query : query, format : format }
+	  data: { query : query, format : format, timeout : timeout }
 	});
 	
 	request.done(function( msg ) {

@@ -32,7 +32,6 @@ public class Sparql extends Controller {
 	static Form<LoadConf> loadForm = Form.form(LoadConf.class);
 	static Form<DataSourceConf> datasourceForm = Form.form(DataSourceConf.class);
 
-	private static long QUERY_TIMEOUT = 120000;
 	private static long LOAD_TIMEOUT = 120000;
 	private static long ADMIN_TIMEOUT = 10000;
 	
@@ -95,8 +94,8 @@ public class Sparql extends Controller {
     	    			views.html.sparql.index.render(
     	    					new Query(query.query, query.format, query.chart)));
     		}
-
-			return getPromiseKgramActor(query, QUERY_TIMEOUT );
+    		System.out.println( query.getTimeout());
+			return getPromiseKgramActor(query, query.getTimeout());
     	}
     	return ok(
     			views.html.sparql.index.render(
@@ -132,11 +131,12 @@ public class Sparql extends Controller {
 			    new Function<Throwable, Object>() {
 					@Override
 					public Object apply(Throwable t) throws Throwable {
-			            if( t instanceof AskTimeoutException ) {
-			                return internalServerError("Timeout");
+						System.out.println(t.getMessage());
+			            if( t instanceof AskTimeoutException) {
+			                return "Timeout";
 			            }
 			            else {
-			                return internalServerError("Got Exception: " + t.getMessage());
+			            	return "Got Exception: " + t.getMessage();
 			            }
 					}
 			    }).map(

@@ -21,6 +21,7 @@ import akka.actor.ActorRef;
 import akka.actor.PoisonPill;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
+import akka.pattern.AskTimeoutException;
 
 import fr.inria.acacia.corese.exceptions.EngineException;
 import fr.inria.edelweiss.kgdqp.core.QueryProcessDQP;
@@ -85,11 +86,12 @@ public class KgramActor extends UntypedActor {
 		}
 		else if(message instanceof Reset){
 		       try {
+		    	   for(String queryId : runningQueries.keySet()){
+		    		   stopQuery(queryId);
+		    	   }
 		           graph = Graph.create(rdfsEntailment);
-		           //TODO kill all queries
-		           //graphDQP = Graph.create(rdfsEntailment);	
-		           //dqpEndpoints.clear();
-		           //DQPMode = false;
+		           //TODO handle fifoWaitingQueries;
+		    	   
 		       } catch (Exception ex) {
 		           ex.printStackTrace();
 		       }
@@ -141,20 +143,25 @@ public class KgramActor extends UntypedActor {
 			}
 		}
 		else if (message instanceof StopQuery){
-			StopQuery stopQuery = (StopQuery) message;
-			ActorRef initialSender = initialSenders.remove(stopQuery.getQueryId());
-			System.out.println("initialSender ==> " + stopQuery.getQueryId());
-			ActorRef queryActor = runningWorkers.remove(stopQuery.getQueryId());
-			if(queryActor!= null){
-				runningQueries.remove(stopQuery.getQueryId());
-				queryActor.tell(PoisonPill.getInstance(), this.getSelf());
-				initialSender.tell("STOPPED", this.getSelf());
-			}
+			StopQuery stop = (StopQuery) message;
+			stopQuery(stop.getQueryId());
 			getSender().tell(status(), this.getSelf());
 		}
 		else {
 			System.out.println(message);
 			unhandled(message);
+		}
+	}
+	
+	public void stopQuery(String queryId){
+		ActorRef initialSender = initialSenders.remove(queryId);
+		System.out.println("initialSender ==> " + queryId);
+		ActorRef queryActor = runningWorkers.remove(queryId);
+		//TODO handle case of query in fifo
+		if(queryActor!= null){
+			runningQueries.remove(queryId);
+			queryActor.tell(PoisonPill.getInstance(), this.getSelf());
+			initialSender.tell("STOPPED", this.getSelf());
 		}
 	}
 	
