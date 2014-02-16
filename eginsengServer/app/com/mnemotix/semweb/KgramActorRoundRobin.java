@@ -22,6 +22,7 @@ import akka.actor.PoisonPill;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
 import akka.pattern.AskTimeoutException;
+import akka.routing.RoundRobinRouter;
 
 import fr.inria.acacia.corese.exceptions.EngineException;
 import fr.inria.edelweiss.kgdqp.core.QueryProcessDQP;
@@ -40,12 +41,12 @@ import fr.inria.edelweiss.kgtool.print.XMLFormat;
 
 import com.mnemotix.mnemokit.semweb.Format;
 
-public class KgramActor extends UntypedActor {
+public class KgramActorRoundRobin extends UntypedActor {
 
 
 	public static final String STOPQUERY = "STOPQUERY";
 	  
-	public final int MAX_WORKERS = 3; //TODO
+	public final int MAX_WORKERS = 16; 
 
 
 	static boolean DQPMode = false;
@@ -58,9 +59,10 @@ public class KgramActor extends UntypedActor {
 		
 	Map<String, ActorRef> initialSenders = new HashMap<String, ActorRef>();
 	Map<String, Query> runningQueries = new HashMap<String, Query>();
-	Queue<Query> fifoWaitingQueries = new LinkedList<Query>();
-	Map<String, ActorRef> runningWorkers = new HashMap<String, ActorRef>();
+	//Queue<Query> fifoWaitingQueries = new LinkedList<Query>();
+	public static Map<String, ActorRef> runningWorkers = new HashMap<String, ActorRef>();
 	
+	ActorRef router = getContext().system().actorOf(new Props(Worker.class).withRouter(new RoundRobinRouter(MAX_WORKERS)));
 	
 	@Override
 	public void onReceive(Object message) throws Exception {
@@ -68,22 +70,15 @@ public class KgramActor extends UntypedActor {
 		if (message instanceof models.Query) {
 			Query query = (Query) message;
 			initialSenders.put(query.getId(), getSender());
-			if(runningWorkers.size() < MAX_WORKERS){
-				ActorRef queryWorker = getContext().system().actorOf( new Props(Worker.class), "query-"+query.getId());
-				runningWorkers.put(query.getId(), queryWorker);
-				runningQueries.put(query.getId(), query);
-				queryWorker.tell(message, this.getSelf());
-			}
-			else{ 
-				fifoWaitingQueries.add(query);
-			}
+			runningQueries.put(query.getId(), query);
+			router.tell(message, this.getSelf());
 		} 
 		else if (message instanceof LoadConf){
 	    	LoadConf load = (LoadConf) message;
 			initialSenders.put(load.getId(), getSender());
-			ActorRef loadActor = getContext().system().actorOf( new Props(Worker.class), "load-"+load.getId());
-			loadActor.tell(message, this.getSelf());
+			router.tell(message, this.getSelf());
 		}
+		
 		else if(message instanceof Reset){
 		       try {
 		    	   for(String queryId : runningQueries.keySet()){
@@ -129,23 +124,24 @@ public class KgramActor extends UntypedActor {
 			ActorRef initialSender = initialSenders.remove(done.getId());
 			System.out.println(done.getId() + " ==> "+initialSender);
 			initialSender.tell(done.getResult(), this.getSelf());
-			runningWorkers.remove(done.getId());
 			if(done.getMessage() instanceof Query){
 				Query query = (Query)done.getMessage();
 				runningQueries.remove(query.getId());
-			}
-			if(!fifoWaitingQueries.isEmpty()){
-				Query nextQuery = fifoWaitingQueries.remove();
-				ActorRef nextQueryActor = getContext().system().actorOf( new Props(Worker.class), "query-"+nextQuery.getId());
-				runningWorkers.put(nextQuery.getId(), nextQueryActor);
-				runningQueries.put(nextQuery.getId(), nextQuery);
-				nextQueryActor.tell(message, this.getSelf());
 			}
 		}
 		else if (message instanceof StopQuery){
 			StopQuery stop = (StopQuery) message;
 			stopQuery(stop.getQueryId());
 			getSender().tell(status(), this.getSelf());
+		}
+		else if (message instanceof AskTimeoutException){
+			for(String queryId : initialSenders.keySet()){
+				//System.out.println("initialSender.isTerminated()" + initialSenders.get(queryId).isTerminated());
+				ActorRef currentSender = initialSenders.get(queryId);
+				if(currentSender.isTerminated()){
+					stopQuery(queryId);
+				}
+			}
 		}
 		else {
 			System.out.println(message);
@@ -155,7 +151,7 @@ public class KgramActor extends UntypedActor {
 	
 	public void stopQuery(String queryId){
 		ActorRef initialSender = initialSenders.remove(queryId);
-		System.out.println("initialSender ==> " + queryId);
+		//System.out.println("initialSender ==> " + queryId);
 		ActorRef queryActor = runningWorkers.remove(queryId);
 		//TODO handle case of query in fifo
 		if(queryActor!= null){
@@ -182,12 +178,12 @@ public class KgramActor extends UntypedActor {
 		}
 		jsonStatus.put("running", jsonRunning);
 
-		ArrayNode jsonWaiting = jsonStatus.arrayNode();
+/*		ArrayNode jsonWaiting = jsonStatus.arrayNode();
 		for(Query query : fifoWaitingQueries){ //TODO check that the it does not empty the fifo
 			jsonWaiting.add(query.toJSON());
 		}
 		jsonStatus.put("waiting", jsonWaiting);		
-
+*/
 		return new ResponseFormat("application/json", jsonStatus);
 	}
 	
@@ -195,9 +191,9 @@ public class KgramActor extends UntypedActor {
 
 		@Override
 		public void onReceive(Object message) {
-			if (message instanceof models.Query) {
-				models.Query query = (models.Query) message;
-				//Thread.sleep(10000);
+			if (message instanceof Query) {
+				Query query = (models.Query) message;
+				KgramActorRoundRobin.runningWorkers.put(query.getId(), getSelf());
 				try{
 					ResponseFormat result = query(query);
 					getSender().tell(new Done(query.getId(), query, result), getSelf());

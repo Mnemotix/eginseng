@@ -17,7 +17,7 @@ function refresh(){
     setTimeout(refresh, 10000);
 }
 
-$('#btnrefresh').click(function() {
+$('#btnRefresh').click(function() {
 	refresh();
 });
 
@@ -171,18 +171,6 @@ function updateStatus(status){
 						"<td>"+queries[i].startTime+"</td>" +
 						"<td>"+queries[i].query+"</td>" +
 						"<td>running</td>" +
-						"<td>" +
-							"<button type='button' class='btn btn-warning' onclick='stopQuery(\""+queries[i].id+"\")'>Stop</button>" +
-						"</td>" +
-					"</tr>");
-		}
-		queries = status.waiting;
-		for(i = 0; i < queries.length; i++){
-			$("#querytable").append(
-					"<tr>" +
-						"<td>"+queries[i].startTime+"</td>" +
-						"<td>"+queries[i].query+"</td>" +
-						"<td>waiting</td>" +
 						"<td>" +
 							"<button type='button' class='btn btn-warning' onclick='stopQuery(\""+queries[i].id+"\")'>Stop</button>" +
 						"</td>" +

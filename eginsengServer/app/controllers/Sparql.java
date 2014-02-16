@@ -1,7 +1,6 @@
 package controllers;
 
 import org.apache.commons.lang3.StringUtils;
-import org.codehaus.jackson.JsonNode;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
@@ -9,7 +8,8 @@ import akka.actor.Props;
 import akka.pattern.AskTimeoutException;
 
 import com.mnemotix.mnemokit.semweb.Format;
-import com.mnemotix.semweb.KgramActor;
+import com.mnemotix.semweb.KgramActorRoundRobin;
+
 import play.data.Form;
 import play.libs.Akka;
 import play.libs.F.Function;
@@ -27,7 +27,7 @@ public class Sparql extends Controller {
 	static boolean rdfsEntailment = false;
 
 	static final ActorSystem system = ActorSystem.create();
-	static ActorRef kgramActor = system.actorOf( new Props(KgramActor.class), "kgramActor");	;
+	static ActorRef kgramActor = system.actorOf( new Props(KgramActorRoundRobin.class), "kgramActor");	;
 	static Form<Query> queryForm = Form.form(Query.class);
 	static Form<LoadConf> loadForm = Form.form(LoadConf.class);
 	static Form<DataSourceConf> datasourceForm = Form.form(DataSourceConf.class);
@@ -44,15 +44,15 @@ public class Sparql extends Controller {
     }
     
     public static Result stopQuery(String queryId){
-    	return getPromiseKgramActor(new KgramActor.StopQuery(queryId), ADMIN_TIMEOUT);
+    	return getPromiseKgramActor(new KgramActorRoundRobin.StopQuery(queryId), ADMIN_TIMEOUT);
     }
     
 	public static Result status() {
-		return getPromiseKgramActor(new KgramActor.Status(), ADMIN_TIMEOUT);
+		return getPromiseKgramActor(new KgramActorRoundRobin.Status(), ADMIN_TIMEOUT);
 	}
 
 	public static Result setDQPMode(boolean dqpMode) {
-		return getPromiseKgramActor(new KgramActor.SetDQPMode(dqpMode), ADMIN_TIMEOUT);
+		return getPromiseKgramActor(new KgramActorRoundRobin.SetDQPMode(dqpMode), ADMIN_TIMEOUT);
 	}
     public static Result admin(){
     	return ok(views.html.sparql.admin.render());
@@ -107,13 +107,13 @@ public class Sparql extends Controller {
 
 	
 	 public static Result reset() {
-		 return getPromiseKgramActor(new KgramActor.Reset(), ADMIN_TIMEOUT);
+		 return getPromiseKgramActor(new KgramActorRoundRobin.Reset(), ADMIN_TIMEOUT);
 	 }
 	 
 	 public static Result removeDataSource(){
 	    	Form<DataSourceConf> dataSourceConf = datasourceForm.bindFromRequest(); 
 	    	if(!dataSourceConf.hasErrors()){
-	    		return getPromiseKgramActor(new KgramActor.RemoveDataSource(dataSourceConf.get().getEndpoint()), ADMIN_TIMEOUT);
+	    		return getPromiseKgramActor(new KgramActorRoundRobin.RemoveDataSource(dataSourceConf.get().getEndpoint()), ADMIN_TIMEOUT);
 	    	}
 	    	return status();
 	 }
@@ -121,7 +121,7 @@ public class Sparql extends Controller {
 	 public static Result addDataSource() {
     	Form<DataSourceConf> dataSourceConf = datasourceForm.bindFromRequest(); 
     	if(!dataSourceConf.hasErrors()){
-    		return getPromiseKgramActor(new KgramActor.AddDataSource(dataSourceConf.get().getEndpoint()), ADMIN_TIMEOUT);
+    		return getPromiseKgramActor(new KgramActorRoundRobin.AddDataSource(dataSourceConf.get().getEndpoint()), ADMIN_TIMEOUT);
     	}
     	return status();
 	 }
@@ -133,6 +133,7 @@ public class Sparql extends Controller {
 					public Object apply(Throwable t) throws Throwable {
 						System.out.println(t.getMessage());
 			            if( t instanceof AskTimeoutException) {
+			            	kgramActor.tell(t, null);
 			                return "Timeout";
 			            }
 			            else {
