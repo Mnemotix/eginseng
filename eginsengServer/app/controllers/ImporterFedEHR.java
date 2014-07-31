@@ -7,11 +7,10 @@ import play.mvc.*;
 import models.FedEHRConf;
 
 public class ImporterFedEHR extends Controller {
-  
-	public static int nbOfWorkers = 8;
 
 	static Form<FedEHRConf> fedEHRConfForm = Form.form(FedEHRConf.class);
 	
+	//launch the crawl of a fedEHR Node
     public static Result crawlNode(){
     	Form<FedEHRConf> filledConfForm = fedEHRConfForm.bindFromRequest(); 
     	if(!filledConfForm.hasErrors()){

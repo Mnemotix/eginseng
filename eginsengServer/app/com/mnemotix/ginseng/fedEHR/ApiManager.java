@@ -6,6 +6,8 @@ import java.util.List;
 
 import org.apache.commons.lang.time.StopWatch;
 
+import play.Logger;
+
 import com.mnemotix.ginseng.fedEHR.rdf.RDFExporter;
 import com.mnemotix.ginseng.vocabulary.SemEHR;
 
@@ -30,20 +32,26 @@ import fr.maatg.pandora.ns.idal.QMedicalEventType;
 import fr.maatg.pandora.ns.idal.QPatient;
 import fr.maatg.pandora.ns.idal.ServerError;
 
+
+//Initial class that was used for centralized crawl of a FedEHR node 
 public class ApiManager {
 	
+	//Function that count all patients available through a given fedEHR Connection
 	public static int countAllPatients(FedEHRConnection fedConnection){
 		int count = 0;
 
 		try {
+			//init the query
+			//hospitalNode is set to null in order to get all the patients from all hospitals
+			//last parameter of getQLimitedPatient specify that's a count request
 			QLimitedPatient qLimitedPatient = ApiManager.getQLimitedPatient(fedConnection, null, 1, 0, true, true);
-			//fedConnection.fedEHRPortType.listPatients(qLimitedPatient);
 
+			//call the service with listPatients
 			Patients patients = fedConnection.fedEHRPortType.listPatients(qLimitedPatient);
 			for(QLimitObjectByNode qLimitObjectByNode : patients.getNextLimits().getLimitObjectByNode()){
 				count += qLimitObjectByNode.getTotalResults();
 			}
-			System.out.println("total: " + count);
+			Logger.debug("total: " + count);
 
 		} catch (ServerError e) {
 			// TODO Auto-generated catch block
@@ -52,6 +60,9 @@ public class ApiManager {
 		return count;
 	}
 	
+	/*
+	//Function that starts the crawl of the patients with 
+	//there medical bags that are available through a FedEHR Connection
 	public static boolean crawlPatients(FedEHRConnection fedConnection, Writer writer, int pageSize, int offset){
 		try {
 
@@ -67,7 +78,7 @@ public class ApiManager {
 
 			qLimitedPatient.setLimits(patients.getNextLimits());		
 			stopWatch.stop();
-			System.out.println(stopWatch.getTime());
+			Logger.debug("duration: "+stopWatch.getTime());
 
 
 			return patients.getNextLimits().isFinished();
@@ -81,8 +92,11 @@ public class ApiManager {
 		return true;
 
 	}
+	*/
 
 	/**
+	 * Function that crawl all the medical bags of a given list of patient.
+	 * Corresponding RDF descriptions are written in the writer
 	 * @param fedConnection
 	 * @param writer
 	 * @param rdfExporter
@@ -166,10 +180,8 @@ public class ApiManager {
 				}
 				qLimitedPatient.setLimits(patients.getNextLimits());		
 				stopWatch.split();
-				System.out.println(stopWatch.getSplitTime());
 			} while(!patients.getNextLimits().isFinished());
 			stopWatch.stop();
-			System.out.println(stopWatch.getTime());
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

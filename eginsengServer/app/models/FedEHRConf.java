@@ -5,8 +5,8 @@ import play.data.validation.Constraints.Required;
 public class FedEHRConf {
 
 	@Required
-	public String confFilePath;
-	public int nbWorkers = 10;
+	public String confFilePath; //We have a conf file by fedEHR node
+	public int nbWorkers = 10; //The number of workers for crawling the nodes
 
 	public FedEHRConf(){
 		

@@ -7,6 +7,8 @@ import java.util.List;
 
 import org.apache.http.client.utils.URIUtils;
 
+import play.Logger;
+
 
 import com.hp.hpl.jena.vocabulary.DC;
 import com.hp.hpl.jena.vocabulary.OWL;
@@ -37,28 +39,35 @@ import fr.maatg.pandora.ns.idal.MedicalEventTypeContainedCVT;
 import fr.maatg.pandora.ns.idal.Patient;
 import fr.maatg.pandora.ns.idal.ServerError;
 
+//This class request FedEHR and generate corresponding from objects.
 public class RDFExporter {
 	
 	String baseURL = "http://e-ginseng.org/";
 	
 	public HashSet<String> typePrimitives = new HashSet<String>();
 	
+	//Helper for building ttl triple for URI Values
 	public String getTripleURIValue(String subject, String property, String value){
 		return "<"+subject+"> " + "<"+property+"> " + "<"+value+"> . \n" ;
 	}
 
+	//Helper for building ttl triple for Literal Values
 	public String getTripleLiteralValue(String subject, String property, String value){
 		return "<"+subject+"> " + "<"+property+"> "+value+" . \n" ;
 	}
-	
+
+	//Helper for writing ttl triple for URI Values
 	public void writeTripleURIValue(Writer output, String subject, String property, String value) throws IOException{
 		output.write(getTripleURIValue(subject, property, value));
 	}
 
+	//Helper for writing ttl triple for Literal Values
 	public void writeTripleLiteralValue(Writer output, String subject, String property, String value) throws IOException{
 		output.write(getTripleLiteralValue(subject, property, value));
 	}
 	
+	// Build literal value with datatype if provided
+	// If lang is introduce, we should add a parameter to this function
 	public String buildLiteralValue(String label, String datatype){
 		if(datatype == null){
 			return "\""+label + "\"";
@@ -66,9 +75,13 @@ public class RDFExporter {
 		return "\""+label + "\"^^<" +datatype+">";
 	}
 	
+	// Write patient personal and medical informations into the given writer and return it's URI
 	public String patient2RDF(Patient patient, Writer output) throws IOException{
+		// build URI
 		String patientURL = baseURL + "patient-" + patient.getHospitalNode() + "-" + patient.getID();
 		output.write(getTripleURIValue(patientURL, RDF.type.getURI(), SemEHR.PATIENT.getURI()));
+		
+		//personal informations
 		if(patient.getDateOfBirth() != null){
 			output.write(getTripleLiteralValue(patientURL, SemEHR.BIRTH_DATE.getURI(), buildLiteralValue(patient.getDateOfBirth().toXMLFormat(), DatatypeMap.xsddate)));
 		}
@@ -78,15 +91,20 @@ public class RDFExporter {
 		if(patientAddress != null){
 			output.write(getTripleURIValue(patientURL, SemEHR.ADDRESS.getURI(), address2RDF(patientAddress, output)));
 		}
+		
+		// api request for medical bags and iterate over it for generating RDF
 		List<MedicalBag> medicalBags = patient.getMedicalBag();
 		if(medicalBags != null){
 			for(MedicalBag medicalBag : medicalBags){
+				//link patient to the medical bag
+				//medicalBag2RDF return the generated URI for the medical bag
 				output.write(getTripleURIValue(patientURL, SemEHR.HAS_MEDICAL_BAG.getURI(), medicalBag2RDF(medicalBag, output)));
 			}
 		}
 		return patientURL;
 	}
 	
+	// generate address RDF description and return its URI
 	public String address2RDF(Address address, Writer output) throws IOException{
 		String addressURL =  baseURL + "address-" + address.getHospitalNode() + "-" + address.getID();
 		writeTripleURIValue(output, addressURL, RDF.type.getURI(), SemEHR.ADDRESS_INSTANCE.getURI());
@@ -100,6 +118,7 @@ public class RDFExporter {
 		return addressURL;
 	}
 	
+	// generate medical bag RDF description and return its URI
 	public String medicalBag2RDF(MedicalBag medicalBag, Writer output) throws IOException{
 		String medicalBagURL =  baseURL + "medicalBag-" + medicalBag.getHospitalNode() + "-" + medicalBag.getID();
 		output.write(getTripleURIValue(medicalBagURL, RDF.type.getURI(), SemEHR.MEDICAL_BAG.getURI()));
@@ -110,20 +129,25 @@ public class RDFExporter {
 					DC.date.getURI(), 
 					buildLiteralValue(medicalBag.getMedicalBagDate().toXMLFormat(), DatatypeMap.xsddate)));
 		}
+		// API request for medical events and iterate over it to generate RDF
 		List<MedicalEvent> medicalEvents = medicalBag.getMedicalEvents();
 		if(medicalEvents != null){
 			for(MedicalEvent medicalEvent : medicalEvents){
+				//link medical bag to the medical event
+				//medicalEvent2RDF return the generated URI for the medical event
 				output.write(getTripleURIValue(medicalBagURL, SemEHR.HAS_MEDICAL_EVENT.getURI(), medicalEvent2RDF(medicalEvent, output)));
 			}
 		}
-		//TODO write triples to ouput
 		return medicalBagURL;
 	}
 
-	
+
+	// generate medical event RDF description and return its URI
 	public String medicalEvent2RDF(MedicalEvent medicalEvent, Writer output) throws IOException{
 		String medicalEventURL =  baseURL + "medicalEvent-" + medicalEvent.getHospitalNode() + "-" + medicalEvent.getID();
 		output.write(getTripleURIValue(medicalEventURL, RDF.type.getURI(), SemEHR.MEDICAL_EVENT.getURI()));
+		
+		// Get the string type of medical event and instantiate it with a URI
 		MedicalEventType medicalEventType = medicalEvent.getMedicalEventType();
 		String medicalEventTypeURL = SemEHR.NS + "medicalEventType-"+ medicalEventType.getName().replaceAll	("\\s", "");
 		output.write(getTripleURIValue(medicalEventURL, RDF.type.getURI(), medicalEventTypeURL));
@@ -144,6 +168,8 @@ public class RDFExporter {
 		List<ClinicalVariable> clinicalVariables = medicalEvent.getClinicalVariable();
 		if(clinicalVariables != null){
 			for(ClinicalVariable clinicalVariable : clinicalVariables){
+				//link medical event to the clinical variable
+				//clinicalVariable2RDF return the generated URI for the clinical variable
 				output.write(getTripleURIValue(medicalEventURL, SemEHR.HAS_CLINICAL_VARIABLE.getURI(), clinicalVariable2RDF(clinicalVariable, output)));
 			}
 		}
@@ -153,10 +179,10 @@ public class RDFExporter {
 	public String clinicalVariable2RDF(ClinicalVariable clinicalVariable, Writer output) throws IOException{
 		String clinicalVariableURL =  baseURL + "clinicalVariable-" + clinicalVariable.getHospitalNode() + "-" + clinicalVariable.getID();
 		output.write(getTripleURIValue(clinicalVariableURL, RDF.type.getURI(), SemEHR.CLINICAL_VARIABLE.getURI()));
+		// Get the string type of clinical variable and instantiate it with a URI
 		String clinicalVariableTypeURL = buildClinicalVariableTypeURI(clinicalVariable.getTypeName());
 		output.write(getTripleURIValue(clinicalVariableURL, RDF.type.getURI(), clinicalVariableTypeURL));
 		
-		clinicalVariable.getClinicalVariableTypeID();
 		if(clinicalVariable.getAcquisitionDate() != null){
 			output.write(
 				getTripleLiteralValue(
@@ -164,7 +190,10 @@ public class RDFExporter {
 					SemEHR.ACQUISITION_DATE.getURI(), 
 					buildLiteralValue(clinicalVariable.getAcquisitionDate().toXMLFormat(), DatatypeMap.xsddate)));
 		}
+		// We have different type of clinical variable value
+		// We need to test each one
 		try{
+			// is it a text annotation?
 			Annotation annotation = (Annotation) clinicalVariable;
 			if(annotation.getValue() != null){
 				output.write(
@@ -177,6 +206,7 @@ public class RDFExporter {
 			//OK This is not an annotation
 		}
 		try{
+			// is it an integer value?
 			IntegerValue integerValue = (IntegerValue) clinicalVariable;
 			if(integerValue.getValue() != null){
 				output.write(
@@ -189,6 +219,7 @@ public class RDFExporter {
 			//OK This is not an integer value
 		}
 		try{
+			// is it an boolean value?
 			BooleanValue booleanValue = (BooleanValue) clinicalVariable;
 			if(booleanValue.isValue() != null){
 				output.write(
@@ -201,6 +232,7 @@ public class RDFExporter {
 			//OK This is not an boolean value
 		}
 		try{
+			// is it an date value?
 			DateValue dateValue = (DateValue) clinicalVariable;
 			if(dateValue.getValue() != null){
 				output.write(
@@ -217,6 +249,7 @@ public class RDFExporter {
 	}
 
 	
+	//The two following functions show an example for navigating into clinical variable tree in FedEHR
 	public void navigateCVTFromMedicalEvent(FedEHRConnection fedEHRConnection, MedicalEvent medicalEvent) throws InvalidDataError, ServerError {
 		FedEHRTypeUtils fedEHRTypeUtils = new FedEHRTypeUtils(new FedEHRObjectFactory(fedEHRConnection.fedEHRPortType));
 		MedicalEventTypeContainedCVT topMETCCVT = fedEHRTypeUtils.getTopElementWithChildren(medicalEvent.getMedicalEventType()).get(0);
@@ -228,7 +261,7 @@ public class RDFExporter {
 		String indent ="";
 		for (int i=0;i<level;i++)
 			indent+="-";
-		System.out.println(indent+clinicalVariableType.getName()); 
+		Logger.debug(indent+clinicalVariableType.getName()); 
 		for (ClinicalVariableTypeRelatedClinicalVariableType clinicalVariableTypeRelatedClinicalVariableType : clinicalVariableType.getRelatedClinicalVariableType()) {
 			navigateCVT(level+1,clinicalVariableTypeRelatedClinicalVariableType.getClinicalVariableType());
 		}

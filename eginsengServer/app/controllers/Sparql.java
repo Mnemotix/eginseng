@@ -10,6 +10,7 @@ import akka.pattern.AskTimeoutException;
 import com.mnemotix.mnemokit.semweb.Format;
 import com.mnemotix.semweb.KgramActorRoundRobin;
 
+import play.Logger;
 import play.data.Form;
 import play.libs.Akka;
 import play.libs.F.Function;
@@ -27,7 +28,7 @@ public class Sparql extends Controller {
 	static boolean rdfsEntailment = false;
 
 	static final ActorSystem system = ActorSystem.create();
-	static ActorRef kgramActor = system.actorOf( new Props(KgramActorRoundRobin.class), "kgramActor");	;
+	static ActorRef kgramActor = system.actorOf( new Props(KgramActorRoundRobin.class), "kgramActor");	
 	static Form<Query> queryForm = Form.form(Query.class);
 	static Form<LoadConf> loadForm = Form.form(LoadConf.class);
 	static Form<DataSourceConf> datasourceForm = Form.form(DataSourceConf.class);
@@ -35,7 +36,8 @@ public class Sparql extends Controller {
 	private static long LOAD_TIMEOUT = 120000;
 	private static long ADMIN_TIMEOUT = 10000;
 	
-    public static Result index() {return ok(
+    public static Result index() {
+    	return ok(
 		views.html.sparql.index.render(
 				new Query(
 						"select * \n" +
@@ -67,12 +69,16 @@ public class Sparql extends Controller {
     	return status();
     }
     
+    // Controller for the SPARQL Protocol
     public static Result sparqlQuery(){
     	Form<Query> filledForm = queryForm.bindFromRequest(); 
     	if(!filledForm.hasErrors()){
     		Query query = filledForm.get();
+    		
     		if(StringUtils.isBlank(query.format)){
-    			System.out.println(request().getHeader("Accept"));
+        		//'format' or 'output' parameter are not specified
+    			//Define response format with content negotiation
+    			Logger.debug(request().getHeader("Accept"));
     			if(request().accepts("application/sparql-results+json")){
 	        		response().setContentType("application/json");
     				query.setFormat(Format.JSON.toString());
@@ -94,7 +100,7 @@ public class Sparql extends Controller {
     	    			views.html.sparql.index.render(
     	    					new Query(query.query, query.format, query.chart)));
     		}
-    		System.out.println( query.getTimeout());
+    		Logger.debug("query.getTimeout(): " + query.getTimeout());
 			return getPromiseKgramActor(query, query.getTimeout());
     	}
     	return ok(

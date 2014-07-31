@@ -12,6 +12,8 @@ import java.util.Properties;
 
 import org.globus.gsi.CredentialException;
 
+import play.Logger;
+
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
@@ -22,9 +24,6 @@ import com.hp.hpl.jena.vocabulary.RDFS;
 import com.mnemotix.ginseng.fedEHR.ApiManager;
 import com.mnemotix.ginseng.fedEHR.rdf.RDFExporter;
 import com.mnemotix.ginseng.vocabulary.SemEHR;
-
-import controllers.Assets;
-
 
 import fr.inria.acacia.corese.cg.datatype.DatatypeMap;
 import fr.inria.edelweiss.kgraph.logic.RDF;
@@ -45,8 +44,11 @@ import fr.maatg.pandora.ns.idal.ServerError;
 
 public class AkkaCrawler {
 
+	// Define the maximum number of request line that FedEHR accept to return
+	// Each request with a page size higher than this value will be limited to it
 	public static final int MAX_FEDEHR_LINE = 10000;
 
+	// Define the maximum number of workers
 	public static final int MAX_WORKERS = 10;
 	
 	/**
@@ -80,34 +82,33 @@ public class AkkaCrawler {
 	}
 
 	/**
-	 * @param nbOfWorkers
-	 * @param pwd
-	 * @param fedEHRServiceURL
-	 * @param certFile
-	 * @param keyFile
-	 * @param caPathPattern
-	 * @param receiveTimeout
-	 * @param outputDir
+	 * @param nbOfWorkers the number of workers
+	 * @param pwd the password of the certificate
+	 * @param fedEHRServiceURL the url of the node
+	 * @param certFile path to the certificate on the server
+	 * @param keyFile path to the key file on the server
+	 * @param caPathPattern path to the directory with authentication chain files
+	 * @param receiveTimeout timeout
+	 * @param outputDir the directory in which the rdf files will be written
 	 */
 	private static void run(int nbOfWorkers, String pwd,
 			String fedEHRServiceURL, String certFile, String keyFile,
 			String caPathPattern, long receiveTimeout, String outputDir) {
 		try{
+			//Get the connection to fedEHR Node
 			final FedEHRConnection fedConnection = new FedEHRConnection(fedEHRServiceURL, certFile, keyFile, caPathPattern, pwd, receiveTimeout);
-			System.out.println(fedConnection.fedEHRPortType.getLocalHospitalNodeName(""));
+			Logger.debug(fedConnection.fedEHRPortType.getLocalHospitalNodeName(""));
 			
 			AkkaCrawler task = new AkkaCrawler();
 			// Create an Akka system
 			final ActorSystem system = ActorSystem.create(task.getClass().getSimpleName());
 			
-			// create the worker
+			//Count the total number of patients for splitting them between workers
 			final int total = ApiManager.countAllPatients(fedConnection);
 			//final int total = 100; //pour test
 			final int limit = total / nbOfWorkers;
 			
 			ActorRef master = system.actorOf( new Props(Master.class));
-	
-			
 			// start the process
 			master.tell(new Go(fedConnection, nbOfWorkers, total, limit, outputDir), null);
 
@@ -148,14 +149,18 @@ public class AkkaCrawler {
 				for (int i = 0; i < go.getNbchuncks(); i++) {
 					int offset = i * go.getLimit();
 					int limit = (go.getLimit() < MAX_FEDEHR_LINE)? go.getLimit() : MAX_FEDEHR_LINE;
+					//init the patient query
 					QLimitedPatient  qLimitedPatient = ApiManager.getQLimitedPatient(fedConnection, hospitalNode, limit, offset, true, true);
+					//open the writer
 					Writer writer = new FileWriter(go.getOutputDir()+File.separator+hospitalNode+"_"+offset+".ttl");
+					//Send patient query to the worker router
 					workerRouter.tell(new WorkQLimitedPatient(fedConnection, qLimitedPatient, writer, go.getLimit(), offset), getSelf());
 				}
 			}
 			else if (message instanceof ClinicalVariableType){
 				ClinicalVariableType clinicalVariableType = (ClinicalVariableType) message;
 				if(!handledClinicalVariableTypes.containsKey(clinicalVariableType)){
+					//build the tree of clinical variables
 					for (ClinicalVariableTypeRelatedClinicalVariableType clinicalVariableTypeRelatedClinicalVariableType : clinicalVariableType.getRelatedClinicalVariableType()) {
 						handleClinicalVariableType(clinicalVariableTypeRelatedClinicalVariableType.getClinicalVariableType());
 					}
@@ -163,6 +168,7 @@ public class AkkaCrawler {
 			}
 			else if (message instanceof Done) {
 				if (--this.remaining == 0) {
+					//Generate the rdf for clinical variable taxonomy
 					Writer cvtWriter = new FileWriter(go.getOutputDir()+File.separator+"cvt"+hospitalNode+".ttl");
 					RDFExporter rdfExporter = new RDFExporter();
 					for(ClinicalVariableType clinicalVariableType : handledClinicalVariableTypes.keySet()){
@@ -197,14 +203,17 @@ public class AkkaCrawler {
 
 		@Override
 		public void onReceive(Object message) throws Exception {
-			if(message instanceof WorkPatients){
+			if(message instanceof WorkPatients){ 
+				// I think that block is dead code, should be removed
 				WorkPatients workPatients = (WorkPatients) message;
 				Patients patients = workPatients.getPatients();
+				//Get the patient list and iterate over it
 				List<Patient> patientList = patients.getPatient();
 				for(Patient patient : patientList){
 					handlePatient(workPatients.getFedConnection(), workPatients.getWriter(), patient);
 				}
 				workPatients.getWriter().close();
+				
 				getSender().tell(new Done(message), getSelf());
 			} 
 			else if(message instanceof WorkQLimitedPatient){
@@ -213,14 +222,18 @@ public class AkkaCrawler {
 				int limit = (workQLimitedPatient.getLimit() < MAX_FEDEHR_LINE)? workQLimitedPatient.getLimit() : MAX_FEDEHR_LINE;
 				QLimitedPatient  qLimitedPatient = workQLimitedPatient.getQLimitedPatient();// ApiManager.getQLimitedPatient(workQLimitedPatient.getFedConnection(), limit, offset, true, true);
 				Patients patients;
+				//Iterate over patient pages
 				do{
-					System.out.println("worker"+workQLimitedPatient.getOffset() + " offset: "+offset+" limit: "+limit);
+					Logger.debug("worker"+workQLimitedPatient.getOffset() + " offset: "+offset+" limit: "+limit);
+					// request patients
 					patients = workQLimitedPatient.getFedConnection().fedEHRPortType.listPatients(qLimitedPatient);
-					System.out.println("worker"+workQLimitedPatient.getOffset() +" patients.getPatient().size(): "+patients.getPatient().size());
+					Logger.debug("worker"+workQLimitedPatient.getOffset() +" patients.getPatient().size(): "+patients.getPatient().size());
+					//Get the patient list
 					List<Patient> patientList = patients.getPatient();
 					for(Patient patient : patientList){
 						handlePatient(workQLimitedPatient.getFedConnection(), workQLimitedPatient.getWriter(), patient);
 					}
+					// update the query in order to ask for next page
 					qLimitedPatient.setLimits(patients.getNextLimits());
 					offset = patients.getNextLimits().getLimitObjectByNode().get(0).getOffset();
 					limit = patients.getNextLimits().getLimitObjectByNode().get(0).getLimit();
@@ -236,6 +249,7 @@ public class AkkaCrawler {
 		}
 		
 		/**
+		 * This function crawl the medical bags and personal information of a patient
 		 * @param fedConnection
 		 * @param writer
 		 * @param rdfExporter
@@ -247,26 +261,25 @@ public class AkkaCrawler {
 				Writer writer, Patient patient)
 				throws IOException, ServerError {
 			RDFExporter rdfExporter = new RDFExporter();
-			String patientUrl = rdfExporter.patient2RDF(patient, writer);
-			/*
-			Address patientAddress = ApiManager.getAddress(fedConnection, patient);
 			
-			if(patientAddress != null){
-				System.out.println("patientAddress.getCity(): "+patientAddress.getCity());
-				rdfExporter.writeTripleURIValue(
-					writer,
-					patientUrl, 
-					SemEHR.ADDRESS.getURI(), 
-					rdfExporter.address2RDF(patientAddress, writer));
-			}
-			*/
+
+			// Write patient informations and medical information 
+			// into the given writer and get it's URI
+			// look to this function to understand/modify the generation of the RDF
+			String patientUrl = rdfExporter.patient2RDF(patient, writer);
+			
+			// look for top clinical variable types and send it
+			// to the master that will use it to build clinical variable taxonomy
+			// iterate over the medical bags of the patient
 			for(MedicalBag medicalBag :  patient.getMedicalBag()){
-				//rdfExporter.medicalBag2RDF(medicalBag, writer);
+				//iterate of the medical event of the current medical bag
 				for(MedicalEvent medicalEvent: medicalBag.getMedicalEvents()){
 					try {
 						FedEHRTypeUtils fedEHRTypeUtils = new FedEHRTypeUtils(new FedEHRObjectFactory(fedConnection.fedEHRPortType));
 						MedicalEventTypeContainedCVT topMETCCVT = fedEHRTypeUtils.getTopElementWithChildren(medicalEvent.getMedicalEventType()).get(0);
 						ClinicalVariableType topCCVT = topMETCCVT.getClinicalVariableType().getValue();
+
+						// send top clinicical variable to master that will 
 						getSender().tell(topCCVT, getSelf());
 					} catch (InvalidDataError e) {
 						// TODO Auto-generated catch block
